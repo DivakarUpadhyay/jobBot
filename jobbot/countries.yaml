@@ -1,0 +1,219 @@
+# NO LONGER READ BY THE BOT. Since 2026-10-12 this lives in the database (table `countries`; see GET /countries).
+# This file is only the starting copy, read once when the table did not exist yet.
+#
+# Every country the bot looks for job sources in, a few per run, in rotation.
+# `jobbot source countries` shows which have been checked and what was found.
+# Remove a line to leave a country out; `first` are checked before the rest.
+
+first: [Taiwan, Remote, India, Malaysia, Singapore, Hong Kong, Japan, South Korea, Germany, United States, Canada, Netherlands,
+        United Kingdom, Australia, United Arab Emirates,
+        Switzerland, Ireland, Sweden, Norway, Denmark, Finland, Iceland, Austria, Belgium, Luxembourg, France,
+        New Zealand, Qatar, Thailand, Vietnam, Poland, Portugal, Spain, Estonia,
+        # Middle East
+        Saudi Arabia, Qatar, Kuwait, Bahrain, Oman, Israel, Turkey, Jordan, Egypt, Lebanon,
+        # rest of Europe
+        Austria, Belgium, Italy, Czechia, Luxembourg, Iceland, Lithuania, Latvia, Greece, Hungary, Romania, Bulgaria,
+        Croatia, Slovenia, Slovakia, Cyprus, Malta, Serbia, Ukraine,
+        # rest of Asia
+        Philippines, Indonesia, China, Macau, Kazakhstan, Sri Lanka, Bangladesh, Nepal, Cambodia, Mongolia, Uzbekistan,
+        Georgia, Armenia, Azerbaijan]
+
+countries:
+  - Afghanistan
+  - Albania
+  - Algeria
+  - Andorra
+  - Angola
+  - Antigua and Barbuda
+  - Argentina
+  - Armenia
+  - Australia
+  - Austria
+  - Azerbaijan
+  - Bahamas
+  - Bahrain
+  - Bangladesh
+  - Barbados
+  - Belarus
+  - Belgium
+  - Belize
+  - Benin
+  - Bhutan
+  - Bolivia
+  - Bosnia and Herzegovina
+  - Botswana
+  - Brazil
+  - Brunei
+  - Bulgaria
+  - Burkina Faso
+  - Burundi
+  - Cabo Verde
+  - Cambodia
+  - Cameroon
+  - Canada
+  - Central African Republic
+  - Chad
+  - Chile
+  - China
+  - Colombia
+  - Comoros
+  - Congo
+  - Costa Rica
+  - Croatia
+  - Cuba
+  - Cyprus
+  - Czechia
+  - Democratic Republic of the Congo
+  - Denmark
+  - Djibouti
+  - Dominica
+  - Dominican Republic
+  - Ecuador
+  - Egypt
+  - El Salvador
+  - Equatorial Guinea
+  - Eritrea
+  - Estonia
+  - Eswatini
+  - Ethiopia
+  - Fiji
+  - Finland
+  - France
+  - Gabon
+  - Gambia
+  - Georgia
+  - Germany
+  - Ghana
+  - Greece
+  - Grenada
+  - Guatemala
+  - Guinea
+  - Guinea-Bissau
+  - Guyana
+  - Haiti
+  - Honduras
+  - Hong Kong
+  - Hungary
+  - Iceland
+  - Indonesia
+  - Iran
+  - Iraq
+  - Ireland
+  - Israel
+  - Italy
+  - Ivory Coast
+  - Jamaica
+  - Japan
+  - Jordan
+  - Kazakhstan
+  - Kenya
+  - Kiribati
+  - Kosovo
+  - Kuwait
+  - Kyrgyzstan
+  - Laos
+  - Latvia
+  - Lebanon
+  - Lesotho
+  - Liberia
+  - Libya
+  - Liechtenstein
+  - Lithuania
+  - Luxembourg
+  - Macau
+  - Madagascar
+  - Malawi
+  - Malaysia
+  - Maldives
+  - Mali
+  - Malta
+  - Marshall Islands
+  - Mauritania
+  - Mauritius
+  - Mexico
+  - Micronesia
+  - Moldova
+  - Monaco
+  - Mongolia
+  - Montenegro
+  - Morocco
+  - Mozambique
+  - Myanmar
+  - Namibia
+  - Nauru
+  - Nepal
+  - Netherlands
+  - New Zealand
+  - Nicaragua
+  - Niger
+  - Nigeria
+  - North Korea
+  - North Macedonia
+  - Norway
+  - Oman
+  - Pakistan
+  - Palau
+  - Palestine
+  - Panama
+  - Papua New Guinea
+  - Paraguay
+  - Peru
+  - Philippines
+  - Poland
+  - Portugal
+  - Qatar
+  - Romania
+  - Russia
+  - Rwanda
+  - Saint Kitts and Nevis
+  - Saint Lucia
+  - Saint Vincent and the Grenadines
+  - Samoa
+  - San Marino
+  - Sao Tome and Principe
+  - Saudi Arabia
+  - Senegal
+  - Serbia
+  - Seychelles
+  - Sierra Leone
+  - Singapore
+  - Slovakia
+  - Slovenia
+  - Solomon Islands
+  - Somalia
+  - South Africa
+  - South Korea
+  - South Sudan
+  - Spain
+  - Sri Lanka
+  - Sudan
+  - Suriname
+  - Sweden
+  - Switzerland
+  - Syria
+  - Taiwan
+  - Tajikistan
+  - Tanzania
+  - Thailand
+  - Timor-Leste
+  - Togo
+  - Tonga
+  - Trinidad and Tobago
+  - Tunisia
+  - Turkey
+  - Turkmenistan
+  - Tuvalu
+  - Uganda
+  - Ukraine
+  - United Arab Emirates
+  - United Kingdom
+  - United States
+  - Uruguay
+  - Uzbekistan
+  - Vanuatu
+  - Vatican City
+  - Venezuela
+  - Vietnam
+  - Yemen
+  - Zambia
+  - Zimbabwe

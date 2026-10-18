@@ -1,0 +1,202 @@
+# DEFAULTS ONLY. Since 2026-10-12 the settings the bot uses live in the database table `settings`.
+# Change a setting on the admin page (Settings) or with the API: PUT /config. Editing a value here
+# does NOT change what the bot does; it only changes what "reset" goes back to. A setting that is
+# new in this file is added to the table the next time the bot starts.
+
+# Where you would work. Remote jobs are taken from any country. On-site jobs are taken only in
+# the countries listed here (add e.g. Singapore or Japan), or anywhere if open_to_relocation is true.
+regions: [Taiwan, Remote]
+# Countries you mainly want. A job located in one of them gets extra points, so it is matched,
+# written and sent before jobs elsewhere. Other countries are still included, just later.
+# Each line: country, then the words that identify it in a job's location.
+# How strictly a job must fit the candidate. Customer accounts start with both on (defaults/config.yaml).
+match:
+  # Keep a job only when its title is one of the candidate's target roles (profile.titles); skills or country alone never qualify it
+  strict: false
+  # Before a resume and email are written, the AI reads the job and the resume and drops jobs that are not a realistic fit
+  ai_check: false
+
+priority_countries:
+  bonus: 15
+  places:
+    Taiwan: [taiwan, taipei, new taipei, hsinchu, taichung, kaohsiung, taoyuan, tainan]
+    Malaysia: [malaysia, kuala lumpur, penang, johor, selangor, cyberjaya]
+    Singapore: [singapore]
+    Hong Kong: [hong kong, hongkong]
+    Japan: [japan, tokyo, osaka, kyoto, fukuoka, yokohama, nagoya]
+    South Korea: [south korea, korea, seoul, busan, pangyo]
+    Germany: [germany, deutschland, berlin, munich, münchen, hamburg, frankfurt, cologne, köln, stuttgart, düsseldorf]
+    United States: [united states, usa, u.s., us, america, new york, san francisco, california, texas, seattle, boston,
+                    chicago, austin, washington]
+    Canada: [canada, toronto, vancouver, montreal, ottawa, calgary]
+    Netherlands: [netherlands, holland, amsterdam, rotterdam, eindhoven, utrecht, the hague]
+    United Kingdom: [united kingdom, uk, england, scotland, wales, london, manchester, edinburgh, cambridge]
+    Australia: [australia, sydney, melbourne, brisbane, perth, canberra]
+    United Arab Emirates: [united arab emirates, uae, dubai, abu dhabi, sharjah]
+    # other wealthy, safe countries (my selection; edit freely)
+    Switzerland: [switzerland, zurich, zürich, geneva, basel, bern]
+    Ireland: [ireland, dublin, cork]
+    Sweden: [sweden, stockholm, gothenburg, malmö]
+    Norway: [norway, oslo, bergen]
+    Denmark: [denmark, copenhagen, aarhus]
+    Finland: [finland, helsinki, espoo]
+    Iceland: [iceland, reykjavik]
+    Austria: [austria, vienna, wien]
+    Belgium: [belgium, brussels, antwerp, ghent]
+    Luxembourg: [luxembourg]
+    France: [france, paris, lyon]
+    New Zealand: [new zealand, auckland, wellington]
+    Qatar: [qatar, doha]
+
+# Countries you do not want jobs from, wherever the job was found. A job is left out when its
+# location names the country or one of the listed cities (a remote job open worldwide is kept).
+exclude_countries: {}
+# Countries where you only want remote or freelance work. An on-site job there is left out;
+# tenders and subcontract leads from these countries are left out too.
+remote_only_countries:
+  India: [India, Bangalore, Bengaluru, Mumbai, Pune, Hyderabad, Chennai, Delhi, Gurgaon, Gurugram, Noida, Kolkata,
+          Ahmedabad, Kochi, Jaipur, Chandigarh, Indore, Coimbatore, Thiruvananthapuram]
+# Rules for jobs located in Taiwan.
+taiwan:
+  # true = technical jobs any type; non-technical jobs only when part-time, temporary or freelance.
+  non_technical_part_time_only: true
+  technical_categories: ["Software .NET", "Software other", "Data / SQL", "QA / Support"]
+  # true = a post written in Chinese is still applied to (in English) when it shows an HR email.
+  # A post that states Mandarin is required is always left out.
+  chinese_posts_with_email: true
+open_to_relocation: true     # on-site jobs abroad are included; those emails say you are open to relocating
+
+daily_target:
+  full: 50
+  part: 50
+
+min_score:                       # 0-100; jobs below this are never matched
+  full: 30
+  part: 25
+
+# true = a job that shows a real HR email is always matched and applied to, technical or not,
+# whatever its match score and on top of the daily targets. The resume still only uses facts
+# from your master resume. false = only jobs above min_score.
+apply_to_every_job_with_email: true
+
+max_age_days: 14                 # only jobs published in the last two weeks
+
+# Words the bot searches each platform with. Platforms that take a search word are asked once per
+# word, so more words means more jobs found (and a somewhat longer run).
+search:
+  keywords: [".NET", "C#", "ASP.NET", "backend engineer", "full stack engineer", "SQL Server", "software engineer",
+             "web developer", "Angular developer", "Next.js", "Azure developer", "data engineer", "technical lead",
+             "API integration", "Web3 developer", "remote developer"]
+  part_time_keywords: ["English tutor", "English teacher", "developer", "freelance", "part time developer",
+                       "technical support", "customer support English", "IT support", "QA tester",
+                       "project coordinator", "data entry English", "contract developer"]
+
+profile:
+  titles: ["software engineer", "backend", "back-end", "back end", "full stack", "full-stack",
+           "fullstack", ".net developer", "c# developer", "web developer", "sql developer",
+           "data engineer", "developer", "programmer"]
+  titles_secondary: ["english teacher", "english tutor", "tutor", "qa engineer", "tester",
+                     "technical support", "support engineer", "customer support"]
+  skills_primary: ["c#", ".net", "asp.net", ".net core", "sql server", "mssql", "t-sql",
+                   "web api", "entity framework", "dapper"]
+  skills_secondary: ["angular", "next.js", "react", "azure", "typescript", "javascript", "docker",
+                     "ssrs", "ssis", "solidity", "web3", "rest", "ci/cd", "sql", "blockchain"]
+
+avoid:
+  title_words: ["intern", "internship"]
+  mandarin_phrases: ["fluent in mandarin", "fluent mandarin", "native mandarin", "mandarin required",
+                     "fluent in chinese", "native chinese", "chinese required", "mandarin is a must",
+                     "精通中文", "中文流利", "中文精通"]
+  max_cjk_ratio: 0.5             # job text more than half Chinese = treated as Mandarin-only
+
+# Remote jobs: location text matching this is open to you; anything else loses points
+remote_open_pattern: "worldwide|anywhere|global|asia|apac|taiwan|international|remote"
+remote_restricted_penalty: 20
+
+browser:
+  channel: chrome                # uses your installed Google Chrome
+
+ai:
+  model: auto                    # auto = newest Gemini "flash" model your key can use
+  seconds_between_calls: 5       # keeps the free tier's per-minute limit
+  # Google's free tier allows about 20 rewrites a day per model. When one model is used up
+  # the bot moves to the next one here; when all are used up it falls back to basic mode.
+  fallback_models: [gemini-3.5-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite]
+  # true = an application is sent automatically only when AI wrote its email and resume from the
+  # job description. Template-only drafts wait and are rewritten when an AI engine is free again.
+  require_ai_for_sending: false  # changed 2026-10-12 at your request: template emails may be sent too
+  order: [gemini, claude]        # tried in this order; an engine without a key in .env is skipped
+  # Claude is paid (needs ANTHROPIC_API_KEY in .env). It is used only when Gemini is used up or absent.
+  # claude-opus-5-5 writes best; claude-haiku-5-5 is far cheaper.
+  claude_model: claude-opus-5-5
+  claude_effort: medium          # low | medium | high : higher thinks longer and costs more
+  per_run: 12                   # resumes rewritten per 30-minute cycle (about 30 seconds each)
+
+sending:
+  # Accounts allowed to send. Others in .env stay unused until listed here. Empty list = all.
+  send_from: [upadhyaydivakar1991@gmail.com, divakarup1991@gmail.com, divakaru1991@gmail.com]
+  # Who is copied on each email, per sending account, so you see exactly what went out.
+  # HR can see this address. Leave a sender out for no CC.
+  cc:
+    upadhyaydivakar1991@gmail.com: divakarup1991@gmail.com
+    divakarup1991@gmail.com: upadhyaydivakar1991@gmail.com
+    divakaru1991@gmail.com: divakarup1991@gmail.com
+  # auto = every prepared job application is sent without asking | semi = auto above the score below
+  # manual = you approve each one. Doubtful addresses (CHECK) and lead emails always wait for you.
+  review: auto
+  semi_auto_min_score: 80
+  # Per account per day, one number per week since the first send from that account. It climbs
+  # slowly toward the Gmail limit (about 500 a day), because a sudden jump is what gets an
+  # account flagged as spam. The last number applies from then on.
+  # Set on 2026-10-12 at your decision: a flat 30 per account per day (90 with three accounts).
+  warmup_caps: [30]
+  daily_ceiling: 30              # never more than this per account per day
+  batch_size: 100                # a full batch: 50 full-time + 50 part-time while both kinds last
+  wait_for_full_batch: true      # send nothing until the whole list for the day is ready and approved
+  send_anyway_after_hour: 15     # ...but after this hour send what is ready (remove this line to always wait)
+  per_run: 10                    # emails per account in each run of the loop
+  gap_seconds: [60, 180]         # random pause between two emails from the same account
+  hours: ["08:30", "18:00"]      # send only between these times (this PC's clock)
+  days: [0, 1, 2, 3, 4, 5, 6]    # every day; 0 = Monday ... 6 = Sunday
+  max_bounce_rate: 0.05          # an account with 2+ bounces and more than this share today stops until tomorrow
+  same_company_days: 30          # never write to the same company again within this many days
+  # Places served first each day: up to this many emails each go out before any other place's.
+  place_first: {Taiwan: 20, Hong Kong: 20, India: 20}
+
+prospects:
+  # Speculative applications to Taiwan listed companies (jobbot prospects ...). They go out after the
+  # real job applications, inside the same daily cap, and never more than this many per account per day.
+  per_day_per_account: 20
+
+leads:
+  per_day_per_account: 3         # lead emails never use more than this many of an account's daily slots
+  min_days_left: 5               # skip notices whose deadline is closer than this
+  skip_countries:                # country: reason. These leads are imported but never emailed.
+    Taiwan: "Taiwan government tenders need a registered Taiwan company"
+
+sources:
+  # true = this account reads the job sites into the shared pool of postings (the service owner's account only)
+  fetch: true
+  auto_approve: true             # true = sources found by discovery are used at once; false = they wait for you
+  countries_per_cycle: 2         # countries checked each time the bot goes looking for new sources
+  discovery_rounds_when_empty: 2 # how many times to look further if the new sources also bring nothing
+  recheck_days: 30               # look at each country again after this many days
+  # Cities and towns searched by name as well, inside their country. Add your own.
+  cities:
+    Taiwan: [Taipei, New Taipei, Taoyuan, Hsinchu, Taichung, Tainan, Kaohsiung, Keelung, Zhubei, Banqiao, Linkou]
+    Singapore: [Singapore]
+    Japan: [Tokyo, Osaka, Fukuoka]
+    Germany: [Berlin, Munich, Hamburg]
+    Netherlands: [Amsterdam, Rotterdam, Eindhoven]
+    United Arab Emirates: [Dubai, Abu Dhabi]
+
+loop:
+  pause_minutes: 10              # with `jobbot cycle --loop`: wait this long after an iteration finishes
+  email_lookups: 400             # most companies to look up for an HR email in one iteration
+  email_lookup_min_score: 20     # look for an email only for jobs that match at least this well
+  step_retries: 1                # a step that fails is tried this many more times (never the steps that send email)
+  retry_wait_seconds: 20         # pause before trying a failed step again
+
+followup:
+  after_days: 7                  # one follow-up when nothing came back this many days after applying
+  per_day_per_account: 3         # follow-ups count toward the daily cap and are limited to this many

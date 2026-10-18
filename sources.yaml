@@ -1,0 +1,966 @@
+# NO LONGER READ BY THE BOT. Since 2026-10-12 the job sources live in the database table `sources`
+# (jobbot.db). Manage them with `jobbot source list / on / off / add / remove`, the admin page, or
+# the API (GET/POST /sources, PUT/DELETE /sources/{name}). Editing this file changes nothing.
+# It is only the starting list: it is copied into the table once, when the table does not exist yet.
+# adapter = which reader in jobbot/sources/ handles it.
+
+- name: 104
+  adapter: tw104
+  region: Taiwan
+  enabled: true
+  params:
+    areas: ["6001001000", "6001002000"]   # Taipei City, New Taipei City
+    pages: 2
+
+- name: remotive
+  adapter: remotive
+  region: Remote
+  enabled: true
+  params:
+    categories: [software-dev]
+
+- name: remoteok
+  adapter: remoteok
+  region: Remote
+  enabled: true
+
+- name: arbeitnow
+  adapter: arbeitnow
+  region: Remote
+  enabled: true
+  params:
+    pages: 2
+
+- name: weworkremotely
+  adapter: wwr
+  region: Remote
+  enabled: true
+  params:
+    feeds:
+      - https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss
+      - https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss
+
+- name: hn-whoishiring
+  adapter: hn
+  region: Remote
+  enabled: true
+  params:
+    pages: 4
+
+- name: jobicy
+  adapter: jobicy
+  region: Remote
+  enabled: true
+  params:
+    tags: [".net", "backend", "full stack", "sql"]
+
+- name: himalayas
+  adapter: himalayas
+  region: Remote
+  enabled: true
+  params:
+    pages: 15
+
+- name: workingnomads
+  adapter: workingnomads
+  region: Remote
+  enabled: true
+
+- name: themuse
+  adapter: themuse
+  region: Remote
+  enabled: true
+  params:
+    categories: [Software Engineering]
+    pages: 3
+
+- name: yourator
+  adapter: yourator
+  region: Taiwan
+  enabled: true
+  params:
+    terms: [".NET", "C#", "backend", "full stack", "English"]
+    pages: 2
+
+# Bidding platform: projects are listed for you to bid on the site. Never emailed.
+- name: freelancer
+  adapter: freelancer
+  region: Remote
+  enabled: true
+  params:
+    # Freelancer skill IDs: 15 .NET, 106 C#, 690 ASP.NET, 695 Microsoft SQL Server,
+    # 1654 ASP.NET MVC, 1669 .NET Core, 2130 .NET Core Web API, 1114 T-SQL
+    skill_ids: [15, 106, 690, 695, 1654, 1669, 2130, 1114]
+    limit: 30
+
+# found by discovery (catalogue): https://jobspresso.co/feed/?post_type=job_listing
+- name: jobspresso
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://jobspresso.co/feed/?post_type=job_listing
+  params:
+    name: jobspresso
+    region: Remote
+    kind: feed
+    url: https://jobspresso.co/feed/?post_type=job_listing
+
+# found by discovery (catalogue): https://nodesk.co/remote-jobs/index.xml
+- name: nodesk
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://nodesk.co/remote-jobs/index.xml
+  params:
+    name: nodesk
+    region: Remote
+    kind: feed
+    url: https://nodesk.co/remote-jobs/index.xml
+
+# found by discovery (catalogue): https://www.realworkfromanywhere.com/rss.xml
+- name: realworkfromanywhere
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://www.realworkfromanywhere.com/rss.xml
+  params:
+    name: realworkfromanywhere
+    region: Remote
+    kind: feed
+    url: https://www.realworkfromanywhere.com/rss.xml
+
+# found by discovery (catalogue): https://authenticjobs.com/feed/
+- name: authenticjobs
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://authenticjobs.com/feed/
+  params:
+    name: authenticjobs
+    region: Remote
+    kind: feed
+    url: https://authenticjobs.com/feed/
+
+# found by discovery (catalogue): https://larajobs.com/feed
+- name: larajobs
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://larajobs.com/feed
+  params:
+    name: larajobs
+    region: Remote
+    kind: feed
+    url: https://larajobs.com/feed
+
+# found by discovery (catalogue): https://jobs.ashbyhq.com/lemon-io
+- name: jobs-ashbyhq
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://jobs.ashbyhq.com/lemon-io
+  params:
+    name: jobs-ashbyhq
+    region: Remote
+    kind: ashby
+    slug: lemon-io
+
+# found by discovery (web search): https://career.now/jobs/software-engineer/singapore
+- name: career-singapore
+  adapter: generic
+  region: Singapore
+  enabled: false
+  home: https://career.now/jobs/software-engineer/singapore
+  params:
+    name: career-singapore
+    region: Singapore
+    kind: ashby
+    slug: sentry
+
+# Leads generated directly: open website / software tenders from the official EU tender
+# database, each with the buyer's published contact email. They wait for your approval.
+- name: ted-tenders
+  adapter: ted
+  region: Europe
+  enabled: true
+  params:
+    name: ted-tenders
+    pages: 4
+
+# found by discovery (catalogue): https://japan-dev.com/jobs
+- name: japan-dev-japan
+  adapter: generic
+  region: Japan
+  enabled: true
+  home: https://japan-dev.com/jobs
+  params:
+    name: japan-dev-japan
+    region: Japan
+    kind: jsonld
+    url: https://japan-dev.com/jobs
+
+# found by discovery (web search): https://expatjobboard.com/jobs/location/japan/engineering/software-engineer
+- name: expatjobboard-japan
+  adapter: generic
+  region: Japan
+  enabled: true
+  home: https://expatjobboard.com/jobs/location/japan/engineering/software-engineer
+  params:
+    name: expatjobboard-japan
+    region: Japan
+    kind: jsonld
+    url: https://expatjobboard.com/jobs/location/japan/engineering/software-engineer
+
+# found by discovery (catalogue): https://berlinstartupjobs.com/feed/
+- name: berlinstartupjobs-germany
+  adapter: generic
+  region: Germany
+  enabled: true
+  home: https://berlinstartupjobs.com/feed/
+  params:
+    name: berlinstartupjobs-germany
+    region: Germany
+    kind: feed
+    url: https://berlinstartupjobs.com/feed/
+
+# found by discovery (catalogue): https://germantechjobs.de/rss
+- name: germantechjobs-germany
+  adapter: generic
+  region: Germany
+  enabled: true
+  home: https://germantechjobs.de/rss
+  params:
+    name: germantechjobs-germany
+    region: Germany
+    kind: feed
+    url: https://germantechjobs.de/rss
+
+# found by discovery (web search): https://en.devjobs.de/jobs/software-engineer
+- name: en-devjobs-germany
+  adapter: generic
+  region: Germany
+  enabled: true
+  home: https://en.devjobs.de/jobs/software-engineer
+  params:
+    name: en-devjobs-germany
+    region: Germany
+    kind: jsonld
+    url: https://en.devjobs.de/jobs/software-engineer
+
+# found by discovery (web search): https://www.englishjobsingermany.com/role/software-engineer
+- name: englishjobsingermany-germany
+  adapter: generic
+  region: Germany
+  enabled: true
+  home: https://www.englishjobsingermany.com/role/software-engineer
+  params:
+    name: englishjobsingermany-germany
+    region: Germany
+    kind: jsonld
+    url: https://www.englishjobsingermany.com/role/software-engineer
+
+# found by discovery (web search): https://www.eurotoptech.com/jobs/country/germany
+- name: eurotoptech-germany
+  adapter: generic
+  region: Germany
+  enabled: true
+  home: https://www.eurotoptech.com/jobs/country/germany
+  params:
+    name: eurotoptech-germany
+    region: Germany
+    kind: jsonld
+    url: https://www.eurotoptech.com/jobs/country/germany
+
+# found by discovery (web search): https://jobsinenglish.de/jobs/category/software-engineering/
+- name: jobsinenglish-germany
+  adapter: generic
+  region: Germany
+  enabled: true
+  home: https://jobsinenglish.de/jobs/category/software-engineering/
+  params:
+    name: jobsinenglish-germany
+    region: Germany
+    kind: jsonld
+    url: https://jobsinenglish.de/jobs/category/software-engineering/
+
+# found by discovery (web search): https://jobsinmunich.com/
+- name: jobsinmunich-germany
+  adapter: generic
+  region: Germany
+  enabled: true
+  home: https://jobsinmunich.com/
+  params:
+    name: jobsinmunich-germany
+    region: Germany
+    kind: jsonld
+    url: https://jobsinmunich.com/
+
+# found by discovery (web search): https://lolanext.com/english-jobs/munich
+- name: lolanext-germany
+  adapter: generic
+  region: Germany
+  enabled: true
+  home: https://lolanext.com/english-jobs/munich
+  params:
+    name: lolanext-germany
+    region: Germany
+    kind: jsonld
+    url: https://lolanext.com/english-jobs/munich
+
+# found by discovery (web search): https://devitjobs.nl/en
+- name: devitjobs-netherlands
+  adapter: generic
+  region: Netherlands
+  enabled: true
+  home: https://devitjobs.nl/en
+  params:
+    name: devitjobs-netherlands
+    region: Netherlands
+    kind: feed
+    url: https://devitjobs.nl/rss
+
+# found by discovery (web search): https://expatjobs.io/jobs/software-engineer/netherlands
+- name: expatjobs-netherlands
+  adapter: generic
+  region: Netherlands
+  enabled: false
+  home: https://expatjobs.io/jobs/software-engineer/netherlands
+  params:
+    name: expatjobs-netherlands
+    region: Netherlands
+    kind: greenhouse
+    slug: adyen
+
+# found by discovery (web search): https://www.itjobboard.co.uk/categories/1254/software-engineer-jobs/
+- name: itjobboard-co-united-kingd
+  adapter: generic
+  region: United Kingdom
+  enabled: true
+  home: https://www.itjobboard.co.uk/categories/1254/software-engineer-jobs/
+  params:
+    name: itjobboard-co-united-kingd
+    region: United Kingdom
+    kind: feed
+    url: https://www.itjobboard.co.uk/rss/
+
+# found by discovery (web search): https://nextraise.ai/jobs/software-engineer-jobs-in-united-states
+- name: nextraise-united-state
+  adapter: generic
+  region: United States
+  enabled: true
+  home: https://nextraise.ai/jobs/software-engineer-jobs-in-united-states
+  params:
+    name: nextraise-united-state
+    region: United States
+    kind: jsonld
+    url: https://nextraise.ai/jobs/software-engineer-jobs-in-united-states
+
+# found by discovery (web search): https://www.lumijobs.ai/jobs/software-engineering
+- name: lumijobs-united-state
+  adapter: generic
+  region: United States
+  enabled: false
+  home: https://www.lumijobs.ai/jobs/software-engineering
+  params:
+    name: lumijobs-united-state
+    region: United States
+    kind: greenhouse
+    slug: arcesiumllc
+
+# found by discovery (web search): https://usdevjobs.com/
+- name: usdevjobs-united-state
+  adapter: generic
+  region: United States
+  enabled: false
+  home: https://usdevjobs.com/
+  params:
+    name: usdevjobs-united-state
+    region: United States
+    kind: greenhouse
+    slug: afresh
+
+# found by discovery (web search): https://www.jobspri.com/jobs-in-hyderabad
+- name: jobspri-india
+  adapter: generic
+  region: India
+  enabled: false
+  home: https://www.jobspri.com/jobs-in-hyderabad
+  params:
+    name: jobspri-india
+    region: India
+    kind: jsonld
+    url: https://www.jobspri.com/jobs-in-hyderabad
+
+# found by discovery (web search): https://dev-korea.com/
+- name: dev-korea-south-korea
+  adapter: generic
+  region: South Korea
+  enabled: true
+  home: https://dev-korea.com/
+  params:
+    name: dev-korea-south-korea
+    region: South Korea
+    kind: jsonld
+    url: https://dev-korea.com/
+
+# found by discovery (web search): https://seoulstart.com/jobs
+- name: seoulstart-south-korea
+  adapter: generic
+  region: South Korea
+  enabled: false
+  home: https://seoulstart.com/jobs
+  params:
+    name: seoulstart-south-korea
+    region: South Korea
+    kind: greenhouse
+    slug: anthropic
+
+# found by discovery (web search): https://wellfound.com/role/l/software-engineer/south-korea-1
+- name: wellfound-south-korea
+  adapter: generic
+  region: South Korea
+  enabled: true
+  home: https://wellfound.com/role/l/software-engineer/south-korea-1
+  params:
+    name: wellfound-south-korea
+    region: South Korea
+    kind: jsonld
+    url: https://wellfound.com/role/l/software-engineer/south-korea-1
+
+# found by discovery (web search): https://xcout.app/jobs/software-engineer-in-south-korea
+- name: xcout-south-korea
+  adapter: generic
+  region: South Korea
+  enabled: true
+  home: https://xcout.app/jobs/software-engineer-in-south-korea
+  params:
+    name: xcout-south-korea
+    region: South Korea
+    kind: jsonld
+    url: https://xcout.app/jobs/software-engineer-in-south-korea
+
+# found by discovery (web search): https://developerjobs.ch/en/
+- name: developerjobs-switzerland
+  adapter: generic
+  region: Switzerland
+  enabled: true
+  home: https://developerjobs.ch/en/
+  params:
+    name: developerjobs-switzerland
+    region: Switzerland
+    kind: feed
+    url: https://developerjobs.ch/en/rss.xml
+
+# found by discovery (web search): https://swissdevjobs.ch/
+- name: swissdevjobs-switzerland
+  adapter: generic
+  region: Switzerland
+  enabled: true
+  home: https://swissdevjobs.ch/
+  params:
+    name: swissdevjobs-switzerland
+    region: Switzerland
+    kind: feed
+    url: https://swissdevjobs.ch/rss
+
+# found by discovery (web search): https://www.jobs.ch/en/vacancies/?term=software+engineer+jobs+in+switzerland
+- name: jobs-switzerland
+  adapter: generic
+  region: Switzerland
+  enabled: true
+  home: https://www.jobs.ch/en/vacancies/?term=software+engineer+jobs+in+switzerland
+  params:
+    name: jobs-switzerland
+    region: Switzerland
+    kind: jsonld
+    url: https://www.jobs.ch/en/vacancies/?term=software+engineer+jobs+in+switzerland
+
+# found by discovery (web search): https://www.qarera.com/jobs/switzerland/software-engineer
+- name: qarera-switzerland
+  adapter: generic
+  region: Switzerland
+  enabled: true
+  home: https://www.qarera.com/jobs/switzerland/software-engineer
+  params:
+    name: qarera-switzerland
+    region: Switzerland
+    kind: jsonld
+    url: https://www.qarera.com/jobs/switzerland/software-engineer
+
+# found by discovery (web search): https://www.swedjobs.com/jobs
+- name: swedjobs-sweden
+  adapter: generic
+  region: Sweden
+  enabled: true
+  home: https://www.swedjobs.com/jobs
+  params:
+    name: swedjobs-sweden
+    region: Sweden
+    kind: feed
+    url: https://www.swedjobs.com/jobs/feed.xml
+
+# found by discovery (web search): https://jobsinsweden.se/cat/it-software-jobs
+- name: jobsinsweden-sweden
+  adapter: generic
+  region: Sweden
+  enabled: true
+  home: https://jobsinsweden.se/cat/it-software-jobs
+  params:
+    name: jobsinsweden-sweden
+    region: Sweden
+    kind: jsonld
+    url: https://jobsinsweden.se/cat/it-software-jobs
+
+# found by discovery (web search): https://norwayjobsinenglish.com/jobs/categories/software-development/
+- name: norwayjobsinenglish-norway
+  adapter: generic
+  region: Norway
+  enabled: true
+  home: https://norwayjobsinenglish.com/jobs/categories/software-development/
+  params:
+    name: norwayjobsinenglish-norway
+    region: Norway
+    kind: jsonld
+    url: https://norwayjobsinenglish.com/jobs/categories/software-development/
+
+# found by discovery (web search): https://www.jobsportal.fi/english-jobs-finland/
+- name: jobsportal-finland
+  adapter: generic
+  region: Finland
+  enabled: true
+  home: https://www.jobsportal.fi/english-jobs-finland/
+  params:
+    name: jobsportal-finland
+    region: Finland
+    kind: jsonld
+    url: https://www.jobsportal.fi/english-jobs-finland/
+
+# found by discovery (web search): https://job-poland.com/
+- name: job-poland-poland
+  adapter: generic
+  region: Poland
+  enabled: true
+  home: https://job-poland.com/
+  params:
+    name: job-poland-poland
+    region: Poland
+    kind: feed
+    url: https://job-poland.com/rss/
+
+# found by discovery (web search): https://nextleveljobs.eu/country/es
+- name: nextleveljobs-spain
+  adapter: generic
+  region: Spain
+  enabled: true
+  home: https://nextleveljobs.eu/country/es
+  params:
+    name: nextleveljobs-spain
+    region: Spain
+    kind: jsonld
+    url: https://nextleveljobs.eu/country/es
+
+# found by discovery (web search): https://devitjobs.fr/en
+- name: devitjobs-france
+  adapter: generic
+  region: France
+  enabled: true
+  home: https://devitjobs.fr/en
+  params:
+    name: devitjobs-france
+    region: France
+    kind: feed
+    url: https://devitjobs.fr/rss
+
+# found by discovery (web search): https://devglobaljobs.com/jobs/country/france
+- name: devglobaljobs-france
+  adapter: generic
+  region: France
+  enabled: true
+  home: https://devglobaljobs.com/jobs/country/france
+  params:
+    name: devglobaljobs-france
+    region: France
+    kind: feed
+    url: https://devglobaljobs.com/jobs.rss
+
+# found by discovery (web search): https://www.expat.com/en/jobs/middle-east/kuwait/
+- name: expat-kuwait
+  adapter: generic
+  region: Kuwait
+  enabled: true
+  home: https://www.expat.com/en/jobs/middle-east/kuwait/
+  params:
+    name: expat-kuwait
+    region: Kuwait
+    kind: jsonld
+    url: https://www.expat.com/en/jobs/middle-east/kuwait/
+
+# found by discovery (web search): https://shaghr.com/en/
+- name: shaghr-oman
+  adapter: generic
+  region: Oman
+  enabled: true
+  home: https://shaghr.com/en/
+  params:
+    name: shaghr-oman
+    region: Oman
+    kind: jsonld
+    url: https://shaghr.com/en/
+
+# Jobrapido: only the Taiwan, Hong Kong and Japan editions allow reading; the others answer "forbidden".
+- name: jobrapido
+  adapter: jobrapido
+  region: Taiwan
+  enabled: true
+  params:
+    name: jobrapido
+    editions: [tw, hk, jp]
+    keywords: [".net", "software engineer", "backend engineer", "full stack", "developer", "programmer", "IT support", "system analyst", "web developer", "data engineer"]
+
+# from your list (in use): https://www.jobleads.com/search/jobs?keywords=.net%20developer
+- name: jobleads
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://www.jobleads.com/search/jobs?keywords=.net%20developer
+  params:
+    name: jobleads
+    region: Remote
+    kind: jsonld
+    url: https://www.jobleads.com/search/jobs?keywords=.net%20developer
+
+# from your list (in use): https://www.dice.com/jobs?q=.net&location=Remote
+- name: dice
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://www.dice.com/jobs?q=.net&location=Remote
+  params:
+    name: dice
+    region: Remote
+    kind: jsonld
+    url: https://www.dice.com/jobs?q=.net&location=Remote
+
+# from your list (in use): https://4dayweek.io/remote-jobs
+- name: 4dayweek
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://4dayweek.io/remote-jobs
+  params:
+    name: 4dayweek
+    region: Remote
+    kind: feed
+    url: https://4dayweek.io/feed
+
+# from your list (in use): https://euremotejobs.com/feed/
+- name: euremotejobs
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://euremotejobs.com/feed/
+  params:
+    name: euremotejobs
+    region: Remote
+    kind: feed
+    url: https://euremotejobs.com/feed/
+
+# from your list (in use): https://devremote.io/
+- name: devremote
+  adapter: generic
+  region: Remote
+  enabled: false
+  home: https://devremote.io/
+  params:
+    name: devremote
+    region: Remote
+    kind: lever
+    slug: certik
+
+# from your list (in use): https://reliefweb.int/jobs/rss.xml
+- name: reliefweb
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://reliefweb.int/jobs/rss.xml
+  params:
+    name: reliefweb
+    region: Remote
+    kind: feed
+    url: https://reliefweb.int/jobs/rss.xml
+
+# from your list (in use): https://www.unjobnet.org/jobs
+- name: unjobnet
+  adapter: generic
+  region: Remote
+  enabled: true
+  home: https://www.unjobnet.org/jobs
+  params:
+    name: unjobnet
+    region: Remote
+    kind: jsonld
+    url: https://www.unjobnet.org/jobs
+
+# from your list (in use): https://www.clearancejobs.com/jobs?keywords=.net
+- name: clearancejobs-united-state
+  adapter: generic
+  region: United States
+  enabled: true
+  home: https://www.clearancejobs.com/jobs?keywords=.net
+  params:
+    name: clearancejobs-united-state
+    region: United States
+    kind: jsonld
+    url: https://www.clearancejobs.com/jobs?keywords=.net
+
+# from your list (in use): https://www.jobbank.gc.ca/jobsearch/feed/jobSearchRSSfeed?searchstring=software+developer
+- name: jobbank-gc-canada
+  adapter: generic
+  region: Canada
+  enabled: true
+  home: https://www.jobbank.gc.ca/jobsearch/feed/jobSearchRSSfeed?searchstring=software+developer
+  params:
+    name: jobbank-gc-canada
+    region: Canada
+    kind: feed
+    url: https://www.jobbank.gc.ca/jobsearch/feed/jobSearchRSSfeed?searchstring=software+developer
+
+# from your list (in use): https://www.jobillico.com/search-jobs?skwd=.net
+- name: jobillico-canada
+  adapter: generic
+  region: Canada
+  enabled: true
+  home: https://www.jobillico.com/search-jobs?skwd=.net
+  params:
+    name: jobillico-canada
+    region: Canada
+    kind: jsonld
+    url: https://www.jobillico.com/search-jobs?skwd=.net
+
+# from your list (in use): https://www.jobware.de/jobsuche?jw_jobname=.net
+- name: jobware-germany
+  adapter: generic
+  region: Germany
+  enabled: true
+  home: https://www.jobware.de/jobsuche?jw_jobname=.net
+  params:
+    name: jobware-germany
+    region: Germany
+    kind: jsonld
+    url: https://www.jobware.de/jobsuche?jw_jobname=.net
+
+# from your list (in use): https://www.free-work.com/fr/tech-it/jobs?query=.net
+- name: free-work-france
+  adapter: generic
+  region: France
+  enabled: true
+  home: https://www.free-work.com/fr/tech-it/jobs?query=.net
+  params:
+    name: free-work-france
+    region: France
+    kind: jsonld
+    url: https://www.free-work.com/fr/tech-it/jobs?query=.net
+
+# from your list (in use): https://www.undutchables.nl/vacancies
+- name: undutchables-netherlands
+  adapter: generic
+  region: Netherlands
+  enabled: true
+  home: https://www.undutchables.nl/vacancies
+  params:
+    name: undutchables-netherlands
+    region: Netherlands
+    kind: jsonld
+    url: https://www.undutchables.nl/vacancies
+
+# from your list (in use): https://www.jobs.ch/en/vacancies/?term=.net
+- name: jobs-switzerland-2
+  adapter: generic
+  region: Switzerland
+  enabled: true
+  home: https://www.jobs.ch/en/vacancies/?term=.net
+  params:
+    name: jobs-switzerland-2
+    region: Switzerland
+    kind: jsonld
+    url: https://www.jobs.ch/en/vacancies/?term=.net
+
+# from your list (in use): https://www.jobup.ch/en/jobs/?term=.net
+- name: jobup-switzerland
+  adapter: generic
+  region: Switzerland
+  enabled: true
+  home: https://www.jobup.ch/en/jobs/?term=.net
+  params:
+    name: jobup-switzerland
+    region: Switzerland
+    kind: jsonld
+    url: https://www.jobup.ch/en/jobs/?term=.net
+
+# from your list (in use): https://www.karriere.at/jobs/net-entwickler
+- name: karriere-austria
+  adapter: generic
+  region: Austria
+  enabled: true
+  home: https://www.karriere.at/jobs/net-entwickler
+  params:
+    name: karriere-austria
+    region: Austria
+    kind: jsonld
+    url: https://www.karriere.at/jobs/net-entwickler
+
+# from your list (in use): https://devjobs.at/jobs
+- name: devjobs-austria
+  adapter: generic
+  region: Austria
+  enabled: true
+  home: https://devjobs.at/jobs
+  params:
+    name: devjobs-austria
+    region: Austria
+    kind: jsonld
+    url: https://devjobs.at/jobs
+
+# from your list (in use): https://nofluffjobs.com/net
+- name: nofluffjobs-poland
+  adapter: generic
+  region: Poland
+  enabled: true
+  home: https://nofluffjobs.com/net
+  params:
+    name: nofluffjobs-poland
+    region: Poland
+    kind: jsonld
+    url: https://nofluffjobs.com/net
+
+# from your list (in use): https://bulldogjob.com/companies/jobs/s/skills,.NET
+- name: bulldogjob-poland
+  adapter: generic
+  region: Poland
+  enabled: true
+  home: https://bulldogjob.com/companies/jobs/s/skills,.NET
+  params:
+    name: bulldogjob-poland
+    region: Poland
+    kind: jsonld
+    url: https://bulldogjob.com/companies/jobs/s/skills,.NET
+
+# from your list (in use): https://thehub.io/jobs?countryCodes=DK
+- name: thehub-denmark
+  adapter: generic
+  region: Denmark
+  enabled: true
+  home: https://thehub.io/jobs?countryCodes=DK
+  params:
+    name: thehub-denmark
+    region: Denmark
+    kind: jsonld
+    url: https://thehub.io/jobs?countryCodes=DK
+
+- name: cpjobs-hong-kong
+  adapter: generic
+  region: Hong Kong
+  enabled: true
+  home: https://www.cpjobs.com/hk/SearchJobs?keyword=.net
+  params:
+    name: cpjobs-hong-kong
+    region: Hong Kong
+    kind: jsonld
+    url: https://www.cpjobs.com/hk/SearchJobs?keyword=.net
+    urls:
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=.net
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=software%20engineer
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=developer
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=programmer
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=system%20analyst
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=IT%20support
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=web%20developer
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=data%20engineer
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=application%20support
+      - https://www.cpjobs.com/hk/SearchJobs?keyword=project%20coordinator
+
+# from your list (in use): https://www.careers24.com/jobs/kw-net-developer/
+- name: careers24-south-africa
+  adapter: generic
+  region: South Africa
+  enabled: true
+  home: https://www.careers24.com/jobs/kw-net-developer/
+  params:
+    name: careers24-south-africa
+    region: South Africa
+    kind: jsonld
+    url: https://www.careers24.com/jobs/kw-net-developer/
+
+# from your list (in use): https://www.518.com.tw/job-index.html?ad=engineer
+- name: 518-com-taiwan
+  adapter: generic
+  region: Taiwan
+  enabled: true
+  home: https://www.518.com.tw/job-index.html?ad=engineer
+  params:
+    name: 518-com-taiwan
+    region: Taiwan
+    kind: jsonld
+    url: https://www.518.com.tw/job-index.html?ad=engineer
+
+# from your list (in use): https://www.cpjobs.com/hk/SearchJobs?keyword=software%20engineer
+- name: cpjobs-hong-kong-2
+  adapter: generic
+  region: Hong Kong
+  enabled: true
+  home: https://www.cpjobs.com/hk/SearchJobs?keyword=software%20engineer
+  params:
+    name: cpjobs-hong-kong-2
+    region: Hong Kong
+    kind: jsonld
+    url: https://www.cpjobs.com/hk/SearchJobs?keyword=software%20engineer
+
+# from your list (in use): https://www.hays.com.hk/job-search/it-jobs
+- name: hays-com-hong-kong
+  adapter: generic
+  region: Hong Kong
+  enabled: true
+  home: https://www.hays.com.hk/job-search/it-jobs
+  params:
+    name: hays-com-hong-kong
+    region: Hong Kong
+    kind: jsonld
+    url: https://www.hays.com.hk/job-search/it-jobs
+
+# Subcontracting leads: companies that have just won a website / software contract in the EU.
+# The winner's contact is published in the award notice. These always wait for your approval.
+- name: ted-awards
+  adapter: ted_awards
+  region: Europe
+  enabled: true
+  params:
+    name: ted-awards
+    pages: 3
+
+# Open UK public contracts for IT and software, with the buyer's published contact.
+- name: uk-contracts
+  adapter: uk_contracts
+  region: United Kingdom
+  enabled: true
+  params:
+    name: uk-contracts
+
+- name: uk-find-a-tender
+  adapter: uk_find_a_tender
+  region: United Kingdom
+  enabled: true
+  params:
+    name: uk-find-a-tender
+    pages: 6
+
+# from your list (in use): https://www.518.com.tw/job-index.html?ad=English
+- name: 518-com-taiwan-2
+  adapter: generic
+  region: Taiwan
+  enabled: true
+  home: https://www.518.com.tw/job-index.html?ad=English
+  params:
+    name: 518-com-taiwan-2
+    region: Taiwan
+    kind: jsonld
+    url: https://www.518.com.tw/job-index.html?ad=English

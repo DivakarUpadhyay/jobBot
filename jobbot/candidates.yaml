@@ -1,0 +1,385 @@
+# NO LONGER READ BY THE BOT. Since 2026-10-12 the sites to test live in the database table
+# `candidates` (jobbot.db), each with its last test result. See them with GET /candidates and add
+# one with POST /candidates {"url": "...", "region": "..."}; `jobbot source probe` tests them all.
+# This file is only the starting list, copied into the table once when the table does not exist yet.
+# India is left out at your request.
+
+Remote:
+  - https://www.upwork.com/nx/search/jobs/?q=.net
+  - https://www.upwork.com/ab/feed/jobs/rss?q=.net
+  - https://www.freelancer.com/jobs/dot-net/
+  - https://www.jobleads.com/search/jobs?keywords=.net%20developer
+  - https://www.jobleads.com/search/jobs?keywords=software%20engineer
+  - https://lensa.com/
+  - https://remote.co/remote-jobs/developer/
+  - https://dynamitejobs.com/remote-jobs
+  - https://startup.jobs/
+  - https://www.ycombinator.com/jobs
+  - https://www.flexjobs.com/remote-jobs/computer-it
+  - https://wellfound.com/jobs
+  - https://arc.dev/remote-jobs
+  - https://www.talent.com/jobs?k=.net+developer&l=remote
+  - https://www.careerjet.com/jobs?s=.net+developer&l=remote
+  - https://www.learn4good.com/jobs/online_remote/info_technology/
+  - https://www.adzuna.com/search?q=.net%20developer&w=remote
+  - https://jooble.org/jobs-.net-developer/Remote
+  - https://www.simplyhired.com/search?q=.net+developer&l=remote
+  - https://www.dice.com/jobs?q=.net&location=Remote
+  - https://builtin.com/jobs/remote/dev-engineering
+  - https://www.techfetch.com/job-search/dotnet-jobs
+  - https://aijobs.net/
+  - https://4dayweek.io/remote-jobs
+  - https://euremotejobs.com/feed/
+  - https://www.skipthedrive.com/feed/
+  - https://powertofly.com/jobs/
+  - https://www.gun.io/find-work
+  - https://jobs.lemon.io/
+  - https://contra.com/opportunities
+  - https://www.malt.com/
+  - https://www.truelancer.com/freelance-jobs
+  - https://www.workana.com/jobs?category=it-programming&language=en
+  - https://www.peopleperhour.com/freelance-jobs/technology-programming
+  - https://www.guru.com/d/jobs/c/programming-development/
+  - https://www.codementor.io/freelance-jobs
+  - https://www.topcoder.com/challenges
+  - https://problogger.com/jobs/
+  - https://www.braintrust.com/jobs
+  - https://jobs.github.com/
+  - https://stackoverflow.com/jobs
+  - https://remotewx.com/
+  - https://remote.io/remote-software-development-jobs
+  - https://remotelist.co/
+  - https://justremote.co/remote-developer-jobs
+  - https://www.remotepython.com/jobs/
+  - https://nocsok.com/
+  - https://www.workingincontent.com/
+  - https://devremote.io/
+  - https://remoteok.com/remote-dotnet-jobs.rss
+  - https://dotnetjobs.dev/
+  - https://www.pangian.com/job-travel-remote/
+
+International organisations:
+  - https://euraxess.ec.europa.eu/jobs/search
+  - https://euraxess.ec.europa.eu/
+  - https://careers.un.org/jobopening
+  - https://reliefweb.int/jobs
+  - https://reliefweb.int/jobs/rss.xml
+  - https://www.devex.com/jobs/search
+  - https://www.impactpool.org/search
+  - https://www.eurobrussels.com/
+  - https://eures.europa.eu/
+  - https://www.higheredjobs.com/search/
+  - https://www.unjobnet.org/jobs
+  - https://www.developmentaid.org/jobs/search
+  - https://jobs.undp.org/
+  - https://www.timeshighereducation.com/unijobs/listings/
+  - https://academicpositions.com/find-jobs
+
+United States:
+  - https://www.usajobs.gov/Search/Results?k=software
+  - https://www.snagajob.com/search?q=software
+  - https://www.monster.com/jobs/search?q=.net-developer
+  - https://www.careerbuilder.com/jobs?keywords=.net+developer
+  - https://www.themuse.com/search/keyword/.net
+  - https://www.clearancejobs.com/jobs?keywords=.net
+  - https://hired.com/
+  - https://www.workatastartup.com/jobs
+
+Canada:
+  - https://www.jobbank.gc.ca/jobsearch/jobsearch?searchstring=software+developer
+  - https://www.jobbank.gc.ca/jobsearch/feed/jobSearchRSSfeed?searchstring=software+developer
+  - https://www.eluta.ca/search?q=.net+developer
+  - https://www.jobillico.com/search-jobs?skwd=.net
+  - https://www.jobboom.com/en/job/developer
+  - https://www.workopolis.com/jobsearch/find-jobs?ak=.net+developer
+  - https://www.itjobs.ca/en/search-jobs/?keywords=.net
+
+United Kingdom:
+  - https://www.reed.co.uk/jobs/net-developer-jobs
+  - https://www.totaljobs.com/jobs/net-developer
+  - https://www.cv-library.co.uk/net-developer-jobs
+  - https://findajob.dwp.gov.uk/search?q=.net+developer
+  - https://jobs.theguardian.com/jobs/technology/
+  - https://www.cwjobs.co.uk/jobs/net-developer
+  - https://www.technojobs.co.uk/net-developer-jobs
+  - https://www.jobserve.com/gb/en/JobSearch.aspx?shid=.net
+  - https://workinstartups.com/job-board/jobs/developers/
+
+Ireland:
+  - https://www.irishjobs.ie/jobs/net-developer
+  - https://www.jobs.ie/net-developer-jobs
+  - https://www.publicjobs.ie/en/
+
+Germany:
+  - https://www.stepstone.de/jobs/net-developer
+  - https://www.jobware.de/jobsuche?jw_jobname=.net
+  - https://www.arbeitsagentur.de/jobsuche/suche?was=.net%20entwickler
+  - https://www.get-in-it.de/jobsuche?thematicPriority=1
+  - https://www.honeypot.io/
+
+France:
+  - https://www.welcometothejungle.com/en/jobs?query=.net
+  - https://www.hellowork.com/fr-fr/emploi/recherche.html?k=.net
+  - https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=.net
+  - https://www.free-work.com/fr/tech-it/jobs?query=.net
+
+Netherlands:
+  - https://www.nationalevacaturebank.nl/vacature/zoeken?query=.net
+  - https://www.intermediair.nl/vacature/zoeken?query=.net
+  - https://www.iamexpat.nl/career/jobs-netherlands/it-technology
+  - https://www.undutchables.nl/vacancies
+  - https://www.togetherabroad.nl/jobs
+
+Belgium:
+  - https://www.vdab.be/vindeenjob/vacatures?trefwoord=.net
+  - https://www.stepstone.be/jobs/net-developer
+  - https://www.ictjob.be/en/search-it-jobs?keywords=.net
+
+Switzerland:
+  - https://www.jobs.ch/en/vacancies/?term=.net
+  - https://www.jobup.ch/en/jobs/?term=.net
+  - https://www.jobscout24.ch/en/jobs/net/
+
+Austria:
+  - https://www.karriere.at/jobs/net-entwickler
+  - https://www.stepstone.at/jobs/net-developer
+  - https://devjobs.at/jobs
+
+Spain:
+  - https://www.infojobs.net/ofertas-trabajo/.net
+  - https://www.tecnoempleo.com/ofertas-trabajo/?te=.net
+  - https://www.manfred.com/ofertas
+
+Italy:
+  - https://www.infojobs.it/offerte-lavoro/.net
+  - https://it.linkedin.com/jobs/net-developer-jobs
+
+Portugal:
+  - https://www.net-empregos.com/pesquisa-empregos.asp?chaves=.net
+  - https://www.itjobs.pt/emprego?q=.net
+  - https://landing.jobs/jobs
+
+Poland:
+  - https://www.pracuj.pl/praca/.net;kw
+  - https://nofluffjobs.com/net
+  - https://justjoin.it/job-offers/all-locations/net
+  - https://bulldogjob.com/companies/jobs/s/skills,.NET
+
+Czechia:
+  - https://www.jobs.cz/prace/?q%5B%5D=.net
+  - https://www.startupjobs.cz/en/jobs
+
+Romania:
+  - https://www.ejobs.ro/locuri-de-munca/.net
+  - https://www.bestjobs.eu/ro/locuri-de-munca/.net
+
+Sweden:
+  - https://arbetsformedlingen.se/platsbanken/annonser?q=.net
+  - https://www.thelocal.se/jobs/
+
+Norway:
+  - https://www.finn.no/job/fulltime/search.html?q=.net
+  - https://arbeidsplassen.nav.no/stillinger?q=.net
+
+Denmark:
+  - https://www.jobindex.dk/jobsoegning?q=.net
+  - https://www.workindenmark.dk/search-jobs?q=.net
+  - https://thehub.io/jobs?countryCodes=DK
+
+Finland:
+  - https://duunitori.fi/tyopaikat?haku=.net
+  - https://tyomarkkinatori.fi/en/personal-customers/vacancies?q=.net
+
+Greece:
+  - https://www.kariera.gr/en/jobs?q=.net
+
+Luxembourg:
+  - https://www.moovijob.com/en/job-offers?q=.net
+
+Estonia:
+  - https://www.cv.ee/en/search?keywords%5B0%5D=.net
+  - https://meetfrank.com/latest-remote-software-engineering-jobs
+
+Taiwan:
+  - https://www.taiwanjobs.gov.tw/Internet/Index/job_search_list.aspx
+  - https://meet.jobs/en/jobs?q=engineer
+  - https://www.cake.me/jobs?location_list%5B0%5D=Taiwan
+  # local job banks
+  - https://www.1111.com.tw/search/job?ks=engineer
+  - https://www.1111.com.tw/search/job?ks=English
+  - https://www.yes123.com.tw/wk_index/joblist.asp?find_key2=engineer
+  - https://www.518.com.tw/job-index.html?ad=engineer
+  - https://www.518.com.tw/job-index.html?ad=English
+  - https://www.chickpt.com.tw/cases?keyword=english
+  - https://www.contacttaiwan.tw/main/index.aspx?lang=2
+  - https://talent.taiwan.gov.tw/
+  - https://tw.indeed.com/jobs?q=.net
+  - https://www.tealit.com/?view=section&sid=36
+  # recruiters
+  - https://www.michaelpage.com.tw/jobs/technology
+  - https://www.robertwalters.com.tw/jobs/technology.html
+  - https://www.adecco.com.tw/en-us/job-search
+  - https://www.manpower.com.tw/job-search
+  - https://www.recruitfirst.co/tw/jobs
+  - https://www.imc.com.tw/
+  - https://www.randstad.tw/jobs/
+  - https://www.hays.com.tw/en/job-search
+  # project, task and service marketplaces (Tasker style)
+  - https://www.tasker.com.tw/cases
+  - https://www.tasker.com.tw/
+  - https://www.pro360.com.tw/
+  - https://www.amazingtalker.com/
+  - https://www.superprof.com.tw/
+
+Singapore:
+  - https://www.mycareersfuture.gov.sg/search?search=.net
+  - https://sg.jobsdb.com/net-developer-jobs
+  - https://www.fastjobs.sg/singapore-jobs/en/it-jobs/
+  - https://www.nodeflair.com/jobs?query=.net
+  - https://www.techinasia.com/jobs/search?query=.net
+
+Malaysia:
+  - https://my.jobstreet.com/net-developer-jobs
+  - https://www.myfuturejobs.gov.my/
+  - https://my.hiredly.com/jobs?search=.net
+  - https://www.ricebowl.my/jobs?keyword=.net
+
+Indonesia:
+  - https://glints.com/id/en/opportunities/jobs/explore?keyword=.net
+  - https://www.kalibrr.com/home/te/net-developer
+
+Philippines:
+  - https://www.onlinejobs.ph/jobseekers/jobsearch?jobkeyword=.net
+  - https://www.kalibrr.com/home/co/Philippines
+
+Thailand:
+  - https://th.jobsdb.com/net-developer-jobs
+  - https://www.jobthai.com/en/jobs?keyword=.net
+
+Vietnam:
+  - https://www.vietnamworks.com/net-developer-kv
+  - https://itviec.com/it-jobs/net
+
+Japan:
+  - https://www.daijob.com/en/jobs/search_result?job_search_form%5Bkeywords%5D=.net
+  - https://jobs.gaijinpot.com/index/index/lang/en
+  - https://www.tokyodev.com/jobs
+  - https://www.careercross.com/en/job-search/result?keywords=.net
+
+South Korea:
+  - https://www.saramin.co.kr/zf_user/search?searchword=.net
+  - https://www.jobkorea.co.kr/Search/?stext=.net
+
+Hong Kong:
+  - https://hk.jobsdb.com/net-developer-jobs
+  - https://www.ctgoodjobs.hk/jobs/net-developer
+  - https://www.cpjobs.com/hk/SearchJobs?keyword=.net
+  - https://www.cpjobs.com/hk/SearchJobs?keyword=software%20engineer
+  - https://www.jobs.gov.hk/0/en/jobseeker/jobsearch/joblist/simple/
+  - https://www.recruit.com.hk/jobseeker/JobSearchResult.aspx?searchPath=B&keyword=software
+  - https://www.jobmarket.com.hk/jobs?keyword=software
+  - https://www.ecjobsonline.com/
+  - https://www.careerjet.hk/jobs?s=.net+developer
+  - https://hk.jora.com/j?q=.net+developer
+  - https://www.jobable.com/jobs
+  - https://www.csb.gov.hk/english/recruit/7.html
+  - https://www.jijis.org.hk/
+  - https://jump.mingpao.com/job/search/
+  - https://www.efinancialcareers.hk/jobs/technology/in-hong-kong
+  - https://www.hays.com.hk/job-search/it-jobs
+  - https://www.michaelpage.com.hk/jobs/technology
+  - https://www.robertwalters.com.hk/jobs/technology.html
+  - https://www.adecco.com.hk/en-hk/job-search
+  - https://www.randstad.com.hk/jobs/q-developer/
+  - https://www.manpower.com.hk/
+  - https://www.freelancing.hk/
+  - https://www.hellotoby.com/
+  - https://www.startmeup.hk/
+  - https://www.whub.io/jobs
+  - https://cyberport.hk/en/about_cyberport/cyberport_careers
+  - https://www.hkstp.org/talent/job-board/
+
+China:
+  - https://www.zhaopin.com/
+
+Australia:
+  - https://www.seek.com.au/net-developer-jobs
+  - https://www.careerone.com.au/jobs?q=.net
+  - https://www.ethicaljobs.com.au/jobs?keywords=developer
+  - https://www.workforceaustralia.gov.au/individuals/jobs/search?searchText=.net
+
+New Zealand:
+  - https://www.seek.co.nz/net-developer-jobs
+  - https://www.trademe.co.nz/a/jobs/it/search?search_string=.net
+
+United Arab Emirates:
+  - https://www.bayt.com/en/uae/jobs/net-developer-jobs/
+  - https://www.gulftalent.com/uae/jobs/category/it-software
+  - https://www.naukrigulf.com/net-developer-jobs-in-uae
+  - https://dubai.dubizzle.com/jobs/it-software-development/
+  - https://www.laimoon.com/uae/jobs/search/.net
+
+Saudi Arabia:
+  - https://www.bayt.com/en/saudi-arabia/jobs/net-developer-jobs/
+  - https://www.naukrigulf.com/net-developer-jobs-in-saudi-arabia
+
+Qatar:
+  - https://www.qatarliving.com/jobs
+  - https://www.naukrigulf.com/net-developer-jobs-in-qatar
+
+Israel:
+  - https://www.secrettelaviv.com/jobs
+  - https://www.janglo.net/jobs
+
+Turkey:
+  - https://www.kariyer.net/is-ilanlari/.net+developer
+
+South Africa:
+  - https://www.careers24.com/jobs/kw-net-developer/
+  - https://www.pnet.co.za/jobs/net-developer
+  - https://www.careerjunction.co.za/jobs/results?keywords=.net
+  - https://www.offerzen.com/
+
+Egypt:
+  - https://wuzzuf.net/search/jobs/?q=.net
+
+Nigeria:
+  - https://www.jobberman.com/jobs?q=.net
+  - https://www.myjobmag.com/search/jobs?q=.net
+
+Kenya:
+  - https://www.brightermonday.co.ke/jobs?q=.net
+  - https://www.fuzu.com/kenya/job?filters%5Bterm%5D=.net
+
+Morocco:
+  - https://www.rekrute.com/offres.html?s=1&keyword=.net
+
+Mexico:
+  - https://www.occ.com.mx/empleos/de-.net/
+  - https://mx.computrabajo.com/trabajo-de-.net
+
+Brazil:
+  - https://www.vagas.com.br/vagas-de-.net
+  - https://www.catho.com.br/vagas/.net/
+  - https://programathor.com.br/jobs
+
+Argentina:
+  - https://www.bumeran.com.ar/empleos-busqueda-.net.html
+
+Colombia:
+  - https://co.computrabajo.com/trabajo-de-.net
+
+Chile:
+  - https://www.laborum.cl/empleos-busqueda-.net.html
+  - https://www.getonbrd.com/jobs/programming
+
+Tenders:
+  - https://web.pcc.gov.tw/prkms/tender/common/basic/indexTenderBasic
+  - https://www.find-tender.service.gov.uk/Search/Results
+  - https://www.contractsfinder.service.gov.uk/Search/Results
+  - https://canadabuys.canada.ca/en/tender-opportunities
+  - https://www.tenders.gov.au/atm
+  - https://www.gets.govt.nz/ExternalIndex.htm
+  - https://www.gebiz.gov.sg/ptn/opportunity/BOListing.xhtml?origin=menu
+  - https://www.ungm.org/Public/Notice
+  - https://sam.gov/search/?index=opp

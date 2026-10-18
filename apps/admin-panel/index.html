@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobPilot Admin</title>
+<style>
+:root{--bg:#f4f5f8;--card:#fff;--ink:#141b26;--muted:#5d6878;--line:#e2e6ed;--brand:#7c3aed;--brand-ink:#fff;--soft:#f1ebff;--ok:#0f7a43;--okbg:#e7f6ee;--bad:#b42318;--badbg:#fdecea;--warn:#a15c00;--warnbg:#fff4e0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0d1118;--card:#151b25;--ink:#eef1f6;--muted:#97a3b4;--line:#263041;--brand:#a78bfa;--brand-ink:#0d1118;--soft:#231c3a;--ok:#5fd394;--okbg:#14301f;--bad:#ff8a80;--badbg:#3a1d1b;--warn:#ffc266;--warnbg:#3a2a12}}
+*{box-sizing:border-box} body{margin:0;font:14.5px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select,textarea{font:inherit;color:inherit} a{color:var(--brand)}
+input,select,textarea{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);width:100%} textarea{min-height:70px}
+label{display:block;font-size:12.5px;color:var(--muted);margin:8px 0 3px}
+.btn{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-weight:550;white-space:nowrap} .btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center} .hidden{display:none!important} .muted{color:var(--muted)} .small{font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+.kpi{font-size:26px;font-weight:750} h2{font-size:19px;margin:0 0 12px} h3{font-size:15px;margin:0 0 8px}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--soft);color:var(--brand)}
+.pill.ok{background:var(--okbg);color:var(--ok)} .pill.bad{background:var(--badbg);color:var(--bad)} .pill.warn{background:var(--warnbg);color:var(--warn)}
+.msg{padding:9px 12px;border-radius:8px;margin:8px 0} .msg.ok{background:var(--okbg);color:var(--ok)} .msg.bad{background:var(--badbg);color:var(--bad)}
+.wrap{overflow-x:auto} table{width:100%;border-collapse:collapse;font-size:13.5px} th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top} th{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);white-space:nowrap}
+td select,td input{padding:5px 7px;width:auto}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.side{background:var(--card);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px}
+.logo{font-weight:800;font-size:18px;padding:4px 10px 14px} .logo span{color:var(--brand)}
+.nav{padding:9px 12px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between} .nav.on{background:var(--soft);color:var(--brand);font-weight:650}
+.main{padding:22px clamp(14px,3vw,30px);min-width:0}
+.enq{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--card)} .enq p{white-space:pre-wrap;margin:8px 0}
+.login{max-width:380px;margin:12vh auto;padding:0 16px}
+@media (max-width:820px){.layout{grid-template-columns:1fr}.side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px;position:sticky;top:0;z-index:5}.side .logo,.side .foot{display:none}.nav{white-space:nowrap}}
+</style>
+</head>
+<body>
+<div id="signin" class="login hidden">
+  <div class="card"><div class="logo" style="padding:0 0 8px">Job<span>Pilot</span> Admin</div>
+    <p class="muted small">For the service operator. Customers use <a href="/app" data-customer-link>the customer portal</a> (a separate site).</p>
+    <form id="signForm" onsubmit="signIn(event)"><label>Email</label><input name="email" type="email" required><label>Password</label><input name="password" type="password" required>
+      <div style="margin-top:12px"><button class="btn primary">Sign in</button></div></form>
+    <form id="setupForm" class="hidden" onsubmit="setup(event)"><p class="small"><b>First start:</b> create the operator account. This works only on the computer the service runs on.</p>
+      <label>Your name</label><input name="name" required><label>Email</label><input name="email" type="email" required>
+      <label>Password (10 characters or more)</label><input name="password" type="password" minlength="10" required autocomplete="new-password">
+      <div style="margin-top:12px"><button class="btn primary">Create operator</button></div></form>
+    <div id="signMsg"></div></div>
+</div>
+
+<div id="panel" class="layout hidden">
+  <aside class="side">
+    <div class="logo">Job<span>Pilot</span> Admin</div>
+    <div class="nav on" data-tab="overview">Overview</div>
+    <div class="nav" data-tab="customers">Customers</div>
+    <div class="nav" data-tab="enquiries">Enquiries <span class="pill" id="newBadge">0</span></div>
+    <div class="nav" data-tab="tickets">Support and feedback <span class="pill" id="ticketBadge">0</span></div>
+    <div class="nav" data-tab="payments">Payments</div>
+    <div class="nav" data-tab="plans">Plans and markets</div>
+    <div class="nav" data-tab="system">System</div>
+    <div class="foot small muted" style="margin-top:auto;padding:10px"><span id="who"></span><br><a href="#" onclick="signOut()">Sign out</a></div>
+  </aside>
+  <main class="main">
+    <section data-page="overview">
+      <h2>Overview</h2>
+      <div class="grid" id="kpis"></div>
+      <div class="grid" style="margin-top:12px"><div class="card"><h3>Customers by market</h3><div id="byMarket" class="small"></div></div>
+        <div class="card"><h3>Latest enquiries</h3><div id="latestEnq" class="small"></div></div></div>
+    </section>
+    <section data-page="customers" class="hidden">
+      <div class="row" style="justify-content:space-between"><h2>Customers</h2><input id="custFilter" placeholder="Search name or email" style="max-width:260px" oninput="renderCustomers()"></div>
+      <div class="card wrap"><table><thead><tr><th>Customer</th><th>Market</th><th>Plan</th><th>Status</th><th>Bot</th><th>Set up</th><th>Paid until</th><th>Sent today</th><th>Sent</th><th>Replies</th><th>Joined</th></tr></thead><tbody id="custRows"></tbody></table></div>
+      <div id="custMsg"></div>
+    </section>
+    <section data-page="enquiries" class="hidden">
+      <div class="row" style="justify-content:space-between"><h2>Enquiries</h2>
+        <div class="row"><select id="enqStatus" onchange="loadEnquiries()" style="width:auto"><option value="">All</option><option value="new" selected>New</option><option>in progress</option><option>answered</option><option>closed</option><option>spam</option></select>
+          <input id="enqQ" placeholder="Search" style="max-width:220px" onkeydown="if(event.key==='Enter')loadEnquiries()"></div></div>
+      <div id="enqList"></div>
+    </section>
+    <section data-page="tickets" class="hidden">
+      <div class="row" style="justify-content:space-between"><h2>Support and feedback</h2>
+        <div class="row"><select id="tkKind" onchange="loadTickets()" style="width:auto"><option value="">Support and feedback</option><option value="support">Support only</option><option value="feedback">Feedback only</option></select>
+          <select id="tkStatus" onchange="loadTickets()" style="width:auto"><option value="">Any status</option><option value="open" selected>open</option><option>in progress</option><option>answered</option><option>closed</option></select></div></div>
+      <div id="ticketList"></div>
+    </section>
+    <section data-page="payments" class="hidden">
+      <h2>Payments</h2>
+      <div class="grid" id="collected" style="margin-bottom:12px"></div>
+      <div class="card wrap"><table><thead><tr><th>Date</th><th>Customer</th><th>Plan</th><th>Amount</th><th>Gateway</th><th>Status</th><th>Reference</th><th>Valid until</th></tr></thead><tbody id="payRows"></tbody></table></div>
+      <div class="card" style="margin-top:12px"><h3>Payment gateways</h3><p class="small muted">Test gateways move no money. Real gateways switch on once their adapter is written and their keys are in .env.</p>
+        <div class="wrap"><table><thead><tr><th>Gateway</th><th>Markets</th><th>Mode</th><th>On</th><th>Note</th></tr></thead><tbody id="gwRows"></tbody></table></div><div id="gwMsg"></div></div>
+    </section>
+    <section data-page="plans" class="hidden">
+      <h2>Plans and markets</h2>
+      <div class="card wrap"><table><thead><tr><th>Market</th><th>Plan</th><th>Title</th><th>Price / month</th><th>Emails / day</th><th>Mailboxes</th><th>On sale</th><th></th></tr></thead><tbody id="planRows"></tbody></table><div id="planMsg"></div></div>
+      <div class="grid" style="margin-top:12px">
+        <div class="card"><h3>Markets</h3><div id="marketList" class="small"></div>
+          <label>Add or change a market</label><div class="row"><input id="mkCode" placeholder="AE" style="width:70px"><input id="mkName" placeholder="United Arab Emirates" style="flex:1"><input id="mkCur" placeholder="AED" style="width:80px"><button class="btn" onclick="saveMarket()">Save</button></div><div id="mkMsg"></div></div>
+        <div class="card"><h3>New plan</h3>
+          <div class="grid"><div><label>Market</label><select id="npMarket"></select></div><div><label>Short name</label><input id="npName" placeholder="ae-starter"></div><div><label>Title</label><input id="npTitle" placeholder="Starter"></div></div>
+          <div class="grid"><div><label>Price / month</label><input id="npPrice" type="number" min="0" value="0"></div><div><label>Emails / day</label><input id="npCap" type="number" min="1" value="30"></div><div><label>Mailboxes</label><input id="npBoxes" type="number" min="1" value="1"></div></div>
+          <label>Features</label><input id="npFeatures"><div style="margin-top:10px"><button class="btn primary" onclick="createPlan()">Create (switched off)</button></div><div id="npMsg"></div></div>
+      </div>
+    </section>
+    <section data-page="system" class="hidden">
+      <h2>System</h2>
+      <div class="grid"><div class="card"><h3>Bot console</h3><p class="small muted">Sources, steps, settings and runs of your own account.</p><a class="btn" href="/console">Open console</a></div>
+        <div class="card"><h3>API reference</h3><p class="small muted">Every REST route, with sign-in, to try live.</p><a class="btn" href="/docs">Open /docs</a></div>
+        <div class="card"><h3>Customer portal</h3><p class="small muted">What customers see: landing, sign-up, dashboard.</p><a class="btn" href="/app" data-customer-link target="_blank" rel="noopener">Open portal</a></div></div>
+    </section>
+  </main>
+</div>
+
+<script>
+// The customer portal is its own site: on the admin port (8766) it lives on the customer port (8765) of the same host.
+document.querySelectorAll("[data-customer-link]").forEach(a => { if (location.port === "8766") a.href = location.origin.replace(":8766", ":8765") + "/"; });
+const KEY = "jobpilot.admin.token";
+let token = null, data = null, planList = [], marketList = [];
+try { token = localStorage.getItem(KEY); } catch (e) {}
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SYMBOL = {INR: "₹", TWD: "NT$", AED: "AED ", NPR: "Rs ", CNY: "¥", JPY: "¥", KRW: "₩", USD: "$"};
+const money = (v, cur) => (SYMBOL[cur] || cur + " ") + Number(v || 0).toLocaleString();
+function note(id, text, ok = true) { $(id).innerHTML = text ? `<div class="msg ${ok ? "ok" : "bad"}">${esc(text)}</div>` : ""; }
+async function api(method, path, body) {
+  const res = await fetch(path, {method, headers: {"Content-Type": "application/json", ...(token ? {Authorization: "Bearer " + token} : {})}, body: body ? JSON.stringify(body) : undefined});
+  const out = await res.json().catch(() => ({}));
+  if (res.status === 401) { showSignIn(); throw new Error("Please sign in."); }
+  if (!res.ok) throw new Error(out.error || `Request failed (${res.status})`);
+  return out;
+}
+async function showSignIn() {
+  $("panel").classList.add("hidden"); $("signin").classList.remove("hidden");
+  try { const s = await (await fetch("/setup")).json(); $("setupForm").classList.toggle("hidden", !s.needed); $("signForm").classList.toggle("hidden", !!s.needed); } catch (e) {}
+}
+async function setup(ev) {
+  ev.preventDefault();
+  const f = Object.fromEntries(new FormData(ev.target));
+  try { await api("POST", "/setup", f); const r = await api("POST", "/login", {email: f.email, password: f.password});
+        token = r.token; try { localStorage.setItem(KEY, token); } catch (e) {} start(); }
+  catch (e) { note("signMsg", e.message, false); }
+}
+async function signIn(ev) {
+  ev.preventDefault();
+  try { const r = await api("POST", "/login", Object.fromEntries(new FormData(ev.target)));
+        if (!r.user.operator) return note("signMsg", "This account is not the service operator.", false);
+        token = r.token; try { localStorage.setItem(KEY, token); } catch (e) {} start(); }
+  catch (e) { note("signMsg", e.message, false); }
+}
+function signOut() { api("POST", "/logout").catch(() => {}); token = null; try { localStorage.removeItem(KEY); } catch (e) {} showSignIn(); }
+document.querySelectorAll(".nav").forEach(n => n.onclick = () => go(n.dataset.tab));
+function go(tab) {
+  document.querySelectorAll(".nav").forEach(n => n.classList.toggle("on", n.dataset.tab === tab));
+  document.querySelectorAll("[data-page]").forEach(p => p.classList.toggle("hidden", p.dataset.page !== tab));
+  ({overview: loadOverview, customers: loadOverview, enquiries: loadEnquiries, plans: loadPlans, tickets: loadTickets, payments: loadPayments})[tab]?.();
+}
+async function start() {
+  try { const me = await api("GET", "/me"); if (!me.user.operator) { signOut(); return note("signMsg", "Operators only.", false); } $("who").textContent = me.user.email; }
+  catch (e) { return; }
+  $("signin").classList.add("hidden"); $("panel").classList.remove("hidden"); go("overview");
+}
+async function loadOverview() {
+  data = await api("GET", "/operator/overview");
+  const t = data.totals;
+  const rev = Object.entries(t.monthly_revenue || {}).map(([c, v]) => money(v, c)).join(" + ") || "0";
+  $("kpis").innerHTML = [["Customers", t.accounts], ["Active", t.active], ["Paying", t.paying], ["Monthly revenue", rev],
+    ["Sent today", t.sent_today], ["Sent in total", t.sent_total], ["New enquiries", t.enquiries_new]]
+    .map(([k, v]) => `<div class="card"><div class="muted small">${k}</div><div class="kpi">${esc(v)}</div></div>`).join("");
+  $("newBadge").textContent = t.enquiries_new;
+  $("ticketBadge").textContent = t.tickets_open ?? 0;
+  $("byMarket").innerHTML = data.markets.map(m => `<div class="row" style="justify-content:space-between;padding:5px 0"><span>${esc(m.name)} ${m.live ? '<span class="pill ok">live</span>' : '<span class="pill">planned</span>'}</span><b>${t.by_market[m.code] || 0}</b></div>`).join("");
+  const latest = await api("GET", "/operator/enquiries");
+  $("latestEnq").innerHTML = latest.slice(0, 6).map(e => `<div style="padding:5px 0;border-bottom:1px solid var(--line)"><b>${esc(e.name)}</b> · ${esc(e.country || "")} · <span class="pill ${e.status === "new" ? "warn" : ""}">${esc(e.status)}</span><div class="muted">${esc(e.message.slice(0, 120))}</div></div>`).join("") || `<p class="muted">None yet.</p>`;
+  if (!planList.length) planList = await api("GET", "/operator/plans");
+  renderCustomers();
+}
+function renderCustomers() {
+  if (!data) return;
+  const f = ($("custFilter").value || "").toLowerCase();
+  const rows = data.accounts.filter(a => !f || (a.name + " " + (a.contact_email || "")).toLowerCase().includes(f));
+  $("custRows").innerHTML = rows.map(a => `<tr><td><b>${esc(a.name)}</b><div class="small muted">${esc(a.contact_email || a.slug)}</div></td><td>${esc(a.market)}</td>
+    <td><select onchange="setAccount(${a.id}, {plan: this.value})">${planList.map(p => `<option value="${esc(p.name)}" ${p.name === a.plan ? "selected" : ""}>${esc(p.market)} · ${esc(p.title)}</option>`).join("")}</select></td>
+    <td><select onchange="setAccount(${a.id}, {status: this.value})"><option ${a.status === "active" ? "selected" : ""}>active</option><option ${a.status === "suspended" ? "selected" : ""}>suspended</option></select></td>
+    <td>${a.bot_on ? '<span class="pill ok">on</span>' : '<span class="pill">off</span>'}</td><td>${a.onboarded ? "✓ done" : a.resume_ready ? "resume only" : "–"}</td>
+    <td>${a.paid_active ? `<span class="pill ok">${esc((a.paid_until || "owner").slice(0, 10))}</span>` : '<span class="pill">unpaid</span>'}</td>
+    <td>${a.sent_today ?? "–"}</td><td>${a.sent_total ?? "–"}</td><td>${a.replies ?? "–"}</td><td class="small">${esc((a.created_at || "").slice(0, 10))}</td></tr>`).join("");
+}
+async function setAccount(id, change) {
+  try { await api("PUT", `/operator/accounts/${id}`, change); note("custMsg", "Saved."); loadOverview(); } catch (e) { note("custMsg", e.message, false); }
+}
+async function loadEnquiries() {
+  const q = new URLSearchParams(); if ($("enqStatus").value) q.set("status", $("enqStatus").value); if ($("enqQ").value) q.set("q", $("enqQ").value);
+  const rows = await api("GET", "/operator/enquiries?" + q);
+  $("enqList").innerHTML = rows.length ? rows.map(e => `<div class="enq"><div class="row" style="justify-content:space-between">
+      <div><b>${esc(e.name)}</b> · <a href="mailto:${esc(e.email)}?subject=${encodeURIComponent("Re: your enquiry to JobPilot")}">${esc(e.email)}</a>${e.phone ? " · " + esc(e.phone) : ""}
+        <div class="small muted">${esc(e.topic)} · ${esc(e.country || "country not given")}${e.company ? " · " + esc(e.company) : ""} · ${esc((e.created_at || "").replace("T", " ").slice(0, 16))} UTC</div></div>
+      <select onchange="setEnquiry(${e.id}, {status: this.value})" style="width:auto">${["new", "in progress", "answered", "closed", "spam"].map(s => `<option ${s === e.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+      <p>${esc(e.message)}</p>
+      <div class="row"><input id="note${e.id}" placeholder="Private note" value="${esc(e.note || "")}" style="flex:1"><button class="btn" onclick="setEnquiry(${e.id}, {note: $('note${e.id}').value})">Save note</button></div></div>`).join("")
+    : `<div class="card muted">No enquiries here.</div>`;
+}
+async function setEnquiry(id, change) { try { await api("PUT", `/operator/enquiries/${id}`, change); loadEnquiries(); } catch (e) { alert(e.message); } }
+async function loadPlans() {
+  [planList, marketList] = await Promise.all([api("GET", "/operator/plans"), api("GET", "/operator/markets")]);
+  const name = c => (marketList.find(m => m.code === c) || {}).name || c;
+  $("planRows").innerHTML = planList.map(p => `<tr><td>${esc(name(p.market))}</td><td class="small">${esc(p.name)}</td>
+    <td><input value="${esc(p.title)}" onchange="setPlan('${esc(p.name)}', {title: this.value})"></td>
+    <td><input type="number" min="0" value="${p.price_month}" style="width:100px" onchange="setPlan('${esc(p.name)}', {price_month: +this.value})"> ${esc(p.currency)}</td>
+    <td><input type="number" min="1" value="${p.daily_cap}" style="width:80px" onchange="setPlan('${esc(p.name)}', {daily_cap: +this.value})"></td>
+    <td><input type="number" min="1" value="${p.mailboxes}" style="width:70px" onchange="setPlan('${esc(p.name)}', {mailboxes: +this.value})"></td>
+    <td><select onchange="setPlan('${esc(p.name)}', {active: +this.value})"><option value="1" ${p.active ? "selected" : ""}>yes</option><option value="0" ${p.active ? "" : "selected"}>no</option></select></td>
+    <td class="small muted">${esc(p.features || "")}</td></tr>`).join("");
+  $("marketList").innerHTML = marketList.map(m => `<div class="row" style="justify-content:space-between;padding:4px 0"><span>${esc(m.code)} · ${esc(m.name)} · ${esc(m.currency)}</span>${m.live ? '<span class="pill ok">live</span>' : '<span class="pill">planned</span>'}</div>`).join("");
+  $("npMarket").innerHTML = marketList.map(m => `<option value="${esc(m.code)}">${esc(m.name)}</option>`).join("");
+}
+async function loadTickets() {
+  const q = new URLSearchParams(); if ($("tkKind").value) q.set("kind", $("tkKind").value); if ($("tkStatus").value) q.set("status", $("tkStatus").value);
+  const rows = await api("GET", "/operator/tickets?" + q);
+  $("ticketList").innerHTML = rows.length ? rows.map(t => `<div class="enq"><div class="row" style="justify-content:space-between">
+      <div><b>${esc(t.subject)}</b> <span class="pill">${esc(t.kind)}</span>${t.rating ? ` <span class="pill warn">${"★".repeat(t.rating)}</span>` : ""}
+        <div class="small muted">${esc(t.account_name)} · ${esc(t.user_email || "")} · ${esc(t.category || "")} · ${esc((t.created_at || "").replace("T", " ").slice(0, 16))} UTC</div></div>
+      <select onchange="setTicket(${t.id}, {status: this.value})" style="width:auto">${["open", "in progress", "answered", "closed"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+      <p>${esc(t.message)}</p>${t.reply ? `<div class="msg ok"><b>Replied:</b> ${esc(t.reply)}</div>` : ""}
+      <div class="row"><textarea id="reply${t.id}" placeholder="Reply to the customer (they see it in their portal)" style="flex:1;min-height:50px"></textarea>
+        <button class="btn primary" onclick="setTicket(${t.id}, {reply: $('reply${t.id}').value})">Send reply</button></div></div>`).join("")
+    : `<div class="card muted">Nothing here.</div>`;
+}
+async function setTicket(id, change) { try { await api("PUT", `/operator/tickets/${id}`, change); loadTickets(); } catch (e) { alert(e.message); } }
+async function loadPayments() {
+  const [p, gws] = await Promise.all([api("GET", "/operator/payments"), api("GET", "/operator/gateways")]);
+  $("collected").innerHTML = (Object.entries(p.collected_30_days).map(([cur, v]) => `<div class="card"><div class="muted small">Collected in 30 days · ${esc(cur)}</div><div class="kpi">${money(v, cur.split(" ")[0])}</div></div>`).join(""))
+    || `<div class="card muted">No payments in the last 30 days.</div>`;
+  $("payRows").innerHTML = p.payments.length ? p.payments.map(x => `<tr><td>${esc((x.created_at || "").slice(0, 10))}</td><td>${esc(x.account_name)}</td><td>${esc(x.plan)}</td>
+      <td>${money(x.amount, x.currency)}</td><td>${esc(x.gateway)}</td><td><span class="pill ${x.status === "paid" ? "ok" : x.status === "failed" ? "bad" : "warn"}">${esc(x.status)}</span></td>
+      <td class="small">${esc(x.reference || "")}</td><td>${esc((x.period_end || "").slice(0, 10))}</td></tr>`).join("") : `<tr><td colspan="8" class="muted">No payments yet.</td></tr>`;
+  $("gwRows").innerHTML = gws.map(g => `<tr><td><b>${esc(g.name)}</b><div class="small muted">${esc(g.code)} · ${esc(g.kind)}</div></td>
+      <td><input value="${esc(g.markets.join(","))}" style="width:110px" onchange="setGateway('${esc(g.code)}', {markets: this.value})"></td>
+      <td>${g.test_mode ? '<span class="pill warn">test</span>' : '<span class="pill ok">live</span>'}</td>
+      <td><select onchange="setGateway('${esc(g.code)}', {active: this.value === '1'})" ${g.adapter_ready ? "" : "disabled title='adapter not written yet'"}><option value="1" ${g.active ? "selected" : ""}>yes</option><option value="0" ${g.active ? "" : "selected"}>no</option></select></td>
+      <td class="small muted">${esc(g.note || "")}</td></tr>`).join("");
+}
+async function setGateway(code, change) { try { await api("PUT", `/operator/gateways/${code}`, change); note("gwMsg", "Saved."); loadPayments(); } catch (e) { note("gwMsg", e.message, false); } }
+async function setPlan(name, change) { try { await api("PUT", `/operator/plans/${encodeURIComponent(name)}`, change); note("planMsg", "Saved."); loadPlans(); } catch (e) { note("planMsg", e.message, false); } }
+async function saveMarket() {
+  try { await api("POST", "/operator/markets", {code: $("mkCode").value, name: $("mkName").value, currency: $("mkCur").value, position: 50});
+        note("mkMsg", "Market saved. Create its plans, then switch them on to launch it."); loadPlans(); } catch (e) { note("mkMsg", e.message, false); }
+}
+async function createPlan() {
+  try { await api("POST", "/operator/plans", {market: $("npMarket").value, name: $("npName").value, title: $("npTitle").value,
+        price_month: +$("npPrice").value, daily_cap: +$("npCap").value, mailboxes: +$("npBoxes").value, features: $("npFeatures").value});
+        note("npMsg", "Plan created, switched off. Turn it on in the table when the market launches."); loadPlans(); } catch (e) { note("npMsg", e.message, false); }
+}
+if (token) start(); else showSignIn();
+</script>
+</body>
+</html>

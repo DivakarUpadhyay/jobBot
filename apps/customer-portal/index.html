@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobPilot · Multi job application system</title>
+<meta name="description" content="JobPilot is a multi job application system: it finds jobs that fit your profile, tailors your resume and cover letter to each one, and applies from your own mailbox.">
+<style>
+:root{--bg:#f5f7fb;--bg2:#eef2f9;--card:#fff;--ink:#0f1b2d;--ink2:#33415a;--muted:#64748b;--line:#e2e8f0;--brand:#2f5bea;--brand2:#1e3fae;--brand-ink:#fff;--soft:#eaf0ff;
+  --ok:#0b7a46;--okbg:#e5f6ed;--bad:#b42318;--badbg:#fdecea;--warn:#9a5b00;--warnbg:#fff4df;--radius:14px;--shadow:0 1px 2px rgba(15,27,45,.06),0 8px 24px rgba(15,27,45,.06);
+  --hero1:#0b1736;--hero2:#1b3a8f}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b111c;--bg2:#0f1726;--card:#131c2b;--ink:#eef2f8;--ink2:#cbd5e1;--muted:#94a3b8;--line:#243147;--brand:#7c9bff;--brand2:#a9bcff;--brand-ink:#0b111c;--soft:#1a2540;
+  --ok:#5fd394;--okbg:#12301f;--bad:#ff8a80;--badbg:#3a1d1b;--warn:#ffc266;--warnbg:#3a2a12;--shadow:none;--hero1:#070d1c;--hero2:#14275e}}
+:root[data-theme="dark"]{--bg:#0b111c;--bg2:#0f1726;--card:#131c2b;--ink:#eef2f8;--ink2:#cbd5e1;--muted:#94a3b8;--line:#243147;--brand:#7c9bff;--brand2:#a9bcff;--brand-ink:#0b111c;--soft:#1a2540;
+  --ok:#5fd394;--okbg:#12301f;--bad:#ff8a80;--badbg:#3a1d1b;--warn:#ffc266;--warnbg:#3a2a12;--shadow:none;--hero1:#070d1c;--hero2:#14275e}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font:15px/1.6 "Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+a{color:var(--brand)}
+*,*::before,*::after,a:hover,a:focus,a:visited{text-decoration:none!important}
+h1,h2,h3,h4{line-height:1.2;margin:0 0 .45em;letter-spacing:-.015em} h2{font-size:24px} h3{font-size:17px} h4{font-size:15px}
+p{margin:0 0 .8em}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 18%,transparent)}
+input:disabled,select:disabled,textarea:disabled{background:var(--bg2);color:var(--muted);cursor:not-allowed}
+textarea{min-height:100px;resize:vertical}
+label{display:block;font-size:13px;font-weight:600;color:var(--ink2);margin:12px 0 5px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 18px;border-radius:10px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-weight:600;white-space:nowrap;transition:transform .05s,background .15s}
+.btn:active{transform:translateY(1px)} .btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)} .btn.primary:hover{background:var(--brand2)}
+.btn.ghost{background:transparent;border-color:transparent} .btn.danger{color:var(--bad)} .btn.lg{padding:13px 24px;font-size:16px} .btn.sm{padding:6px 12px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center} .between{justify-content:space-between}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;min-width:0;box-shadow:var(--shadow)}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.grid2{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
+.muted{color:var(--muted)} .small{font-size:13px} .hidden{display:none!important} .center{text-align:center}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--soft);color:var(--brand)}
+.pill.ok{background:var(--okbg);color:var(--ok)} .pill.bad{background:var(--badbg);color:var(--bad)} .pill.warn{background:var(--warnbg);color:var(--warn)}
+.msg{padding:11px 14px;border-radius:10px;margin:12px 0;font-size:14px} .msg.ok{background:var(--okbg);color:var(--ok)} .msg.bad{background:var(--badbg);color:var(--bad)} .msg.info{background:var(--soft);color:var(--brand2)}
+.wrap{overflow-x:auto} table{width:100%;border-collapse:collapse;font-size:14px} th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top} th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+fieldset{border:0;padding:0;margin:0;min-width:0}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brand)}
+/* ---------- public site ---------- */
+.nav-top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line)}
+.nav-top .in{max-width:1180px;margin:auto;display:flex;align-items:center;gap:22px;padding:12px 20px}
+.logo{font-weight:800;font-size:20px;letter-spacing:-.03em;display:flex;align-items:center;gap:9px;color:var(--ink)} .logo i{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),#7c3aed);display:grid;place-items:center;color:#fff;font-style:normal;font-size:15px}
+.links{display:flex;gap:4px;flex:1} .links a{padding:7px 11px;border-radius:8px;color:var(--ink2);font-weight:550} .links a:hover{background:var(--bg2);text-decoration:none}
+.hero{background:radial-gradient(1200px 500px at 85% -10%,var(--hero2),transparent),linear-gradient(160deg,var(--hero1),#13265e);color:#fff}
+.hero .in{max-width:1180px;margin:auto;padding:72px 20px 84px;display:grid;gap:40px;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));align-items:center}
+.hero h1{font-size:clamp(32px,5vw,52px);letter-spacing:-.035em;line-height:1.08} .hero p.lead{font-size:18px;color:#c7d2fe;max-width:560px}
+.hero .eyebrow{color:#a5b4fc} .hero .btn{border-color:rgba(255,255,255,.25)} .hero .btn:not(.primary){background:rgba(255,255,255,.08);color:#fff}
+.hero .btn.primary{background:#fff;color:#0f1b2d;border-color:#fff}
+.stats{display:flex;gap:30px;margin-top:30px;flex-wrap:wrap} .stats b{display:block;font-size:26px;letter-spacing:-.02em} .stats span{color:#a5b4fc;font-size:13px}
+.mock{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:18px;backdrop-filter:blur(6px)}
+.mock .item{background:rgba(255,255,255,.95);color:#0f1b2d;border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.mock .item small{color:#64748b;display:block} .score{font-weight:800;color:#0b7a46;background:#e5f6ed;border-radius:8px;padding:4px 9px;font-size:13px}
+.score.no{color:#b42318;background:#fdecea}
+section.block{max-width:1180px;margin:auto;padding:72px 20px} section.alt{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+section.alt>.in{max-width:1180px;margin:auto;padding:72px 20px}
+.section-head{max-width:680px;margin-bottom:34px} .section-head h2{font-size:clamp(26px,3.4vw,36px)} .section-head p{color:var(--muted);font-size:17px}
+.feature{display:flex;flex-direction:column;gap:6px} .ico{width:40px;height:40px;border-radius:11px;background:var(--soft);color:var(--brand);display:grid;place-items:center;font-size:19px;margin-bottom:6px}
+.steps{counter-reset:s;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+.steps .card{position:relative;padding-top:46px} .steps .card::before{counter-increment:s;content:counter(s);position:absolute;top:16px;left:22px;width:26px;height:26px;border-radius:50%;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:700;font-size:13px}
+.plan{display:flex;flex-direction:column;gap:8px;position:relative} .plan.best{border:2px solid var(--brand)} .plan .tag{position:absolute;top:-12px;right:18px;background:var(--brand);color:var(--brand-ink);font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px}
+.price{font-size:34px;font-weight:800;letter-spacing:-.03em} .plan ul{padding-left:18px;margin:6px 0;color:var(--ink2);font-size:14px} .plan .btn{margin-top:auto}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px} .tab{padding:7px 14px;border-radius:999px;cursor:pointer;border:1px solid var(--line);background:var(--card);font-size:14px} .tab.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:650}
+.auth-wrap{min-height:calc(100vh - 60px);display:grid;place-items:center;padding:40px 16px;background:linear-gradient(180deg,var(--bg2),var(--bg))}
+.auth{width:min(100%,480px)} .auth h2{font-size:26px}
+footer.site{border-top:1px solid var(--line);background:var(--card)} footer.site .in{max-width:1180px;margin:auto;padding:30px 20px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.promise{display:grid;gap:12px} .promise div{display:flex;gap:12px;align-items:flex-start} .promise b{color:var(--ink)} .tick{flex:none;width:22px;height:22px;border-radius:50%;background:var(--okbg);color:var(--ok);display:grid;place-items:center;font-size:12px;font-weight:800;margin-top:2px}
+/* ---------- onboarding ---------- */
+.onb{max-width:880px;margin:auto;padding:30px 16px 60px}
+.stepper{display:flex;gap:8px;margin:18px 0 22px;flex-wrap:wrap} .stepper div{flex:1;min-width:120px;padding:10px 12px;border-radius:10px;background:var(--card);border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--muted)}
+.stepper div.on{border-color:var(--brand);color:var(--brand);background:var(--soft)} .stepper div.done{color:var(--ok)} .stepper small{display:block;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.chipset{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px} .chipset .c{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-size:13px;user-select:none}
+.chipset .c.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.toggle{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--card)} .toggle input{width:auto;margin-top:4px}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px;text-align:center;background:var(--bg2)}
+/* ---------- app ---------- */
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+.side{background:var(--card);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh;overflow:auto}
+.side .logo{padding:2px 10px 18px} .side .grp{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:14px 12px 4px}
+.nav{padding:9px 12px;border-radius:9px;cursor:pointer;color:var(--ink2);display:flex;gap:10px;align-items:center;font-weight:550} .nav:hover{background:var(--bg2)} .nav.on{background:var(--soft);color:var(--brand);font-weight:700}
+.nav .lock{margin-left:auto;font-size:11px;color:var(--muted)}
+.main{padding:26px clamp(16px,3vw,40px);max-width:1180px;width:100%}
+.banner{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:16px 20px;border-radius:14px;background:linear-gradient(120deg,var(--hero1),var(--hero2));color:#fff;margin-bottom:20px}
+.banner p{margin:0;color:#c7d2fe} .banner .btn{background:#fff;color:#0f1b2d;border-color:#fff}
+.kpi{font-size:30px;font-weight:800;letter-spacing:-.02em} .kcard .muted{font-size:13px}
+.check{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)} .check:last-child{border:0}
+.dot{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;flex:none;background:var(--bg2);color:var(--muted)} .dot.done{background:var(--ok);color:#fff}
+.switch{position:relative;width:56px;height:32px;border-radius:999px;background:var(--line);cursor:pointer;border:0;flex:none} .switch::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.switch.on{background:var(--ok)} .switch.on::after{left:28px} .switch:disabled{opacity:.45;cursor:not-allowed}
+.job{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;background:var(--card)}
+details summary{cursor:pointer;color:var(--brand);font-size:13px;font-weight:600;margin-top:8px} pre{white-space:pre-wrap;font-family:inherit;font-size:13px;background:var(--bg2);padding:12px;border-radius:10px;margin:8px 0 0}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:18px} .page-head p{margin:0}
+.ai-out{white-space:pre-wrap;background:var(--bg2);border-radius:12px;padding:14px;min-height:80px;font-size:14px}
+.locknote{display:none} body.locked .locknote{display:block}
+@media (max-width:860px){.links{display:none}.app{grid-template-columns:1fr}.side{position:sticky;height:auto;z-index:15;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}.side .logo,.side .grp,.side .foot{display:none}.nav{white-space:nowrap}}
+</style>
+</head>
+<body>
+
+<!-- ================= public site ================= -->
+<div id="site">
+  <header class="nav-top"><div class="in">
+    <a class="logo" href="#top" onclick="show('home')"><i>J</i>JobPilot</a>
+    <nav class="links"><a href="#about" onclick="show('home')">About</a><a href="#product" onclick="show('home')">Product</a><a href="#plans" onclick="show('home')">Plans</a><a href="#contact" onclick="show('home')">Contact</a></nav>
+    <div class="row"><button class="btn ghost" onclick="show('login')">Sign in</button><button class="btn primary" onclick="show('register')">Get started</button></div>
+  </div></header>
+
+  <div id="pubHome">
+    <div class="hero" id="top"><div class="in">
+      <div>
+        <div class="eyebrow">Multi job application system</div>
+        <h1>Apply only to the jobs that truly fit you.</h1>
+        <p class="lead">JobPilot is a multi job application system that applies to many matching jobs for you at once. It reads job boards every day, keeps only roles that match your profession and skills, tailors your resume and cover letter to each one, and sends from your own mailbox with your approval.</p>
+        <div class="row" style="margin-top:22px"><button class="btn primary lg" onclick="show('register')">Create your profile</button><a class="btn lg" href="#product">See how it works</a></div>
+        <div class="stats"><div><b>2-step</b><span>relevance check on every job</span></div><div><b>0</b><span>emails sent without your plan and approval</span></div><div><b>100%</b><span>facts taken from your own resume</span></div></div>
+      </div>
+      <div class="mock" aria-hidden="true">
+        <div class="small" style="color:#c7d2fe;margin-bottom:10px">Today's matches for a data analyst</div>
+        <div class="item"><div><b>Senior Data Analyst</b><small>Fintech · Bengaluru · SQL, Power BI</small></div><span class="score">Fit</span></div>
+        <div class="item"><div><b>BI Analyst</b><small>Retail · Remote · Tableau, Python</small></div><span class="score">Fit</span></div>
+        <div class="item"><div><b>Sales Executive</b><small>Different field: not sent</small></div><span class="score no">Skipped</span></div>
+        <div class="item"><div><b>Backend Java Developer</b><small>Different role: not sent</small></div><span class="score no">Skipped</span></div>
+      </div>
+    </div></div>
+
+    <section class="block" id="about">
+      <div class="grid2" style="align-items:center">
+        <div class="section-head"><div class="eyebrow">About us</div><h2>Built for job seekers who value quality over spam</h2>
+          <p>Mass-applying hurts your reputation with recruiters. JobPilot was built the other way round: fewer, better applications, each one written for the role from your real experience and sent from your own address, so replies come straight to you.</p>
+          <p>We serve candidates in every field, from software and data to healthcare, finance, teaching and operations, starting in India and expanding across Asia and the Middle East.</p></div>
+        <div class="card promise">
+          <h3>Our accuracy promise</h3>
+          <div><span class="tick">✓</span><span><b>Role match first.</b> A job is kept only when its title is one of the roles you chose.</span></div>
+          <div><span class="tick">✓</span><span><b>AI fit check.</b> Before anything is written, the AI compares the job with your resume and drops jobs from another field or far above your level.</span></div>
+          <div><span class="tick">✓</span><span><b>Nothing invented.</b> Tailored resumes and emails use only facts from your resume and cover letter; anything new is flagged.</span></div>
+          <div><span class="tick">✓</span><span><b>You stay in control.</b> Approve each email, or let a paid plan send automatically within safe daily limits.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="product"><div class="in">
+      <div class="section-head"><div class="eyebrow">Product</div><h2>One multi job application system for your whole search</h2><p>Apply to many matching jobs across many job boards and countries, each application tailored and tracked, in four steps.</p></div>
+      <div class="steps">
+        <div class="card"><h3>Create your profile</h3><p class="muted small">Your details, resume and cover letter. We read your resume and structure it for you.</p></div>
+        <div class="card"><h3>Choose your jobs</h3><p class="muted small">We suggest job titles, keywords and skills from your resume. Keep the ones you want.</p></div>
+        <div class="card"><h3>Activate a plan</h3><p class="muted small">Pick a plan, connect your mailbox and switch the bot on.</p></div>
+        <div class="card"><h3>Review and track</h3><p class="muted small">Approve tailored emails, then follow every application and reply.</p></div>
+      </div>
+      <div class="grid" style="margin-top:22px">
+        <div class="card feature"><div class="ico">◎</div><h3>Precise matching</h3><p class="muted small">A role-title check plus an AI fit check on every job. Wrong-field jobs are set aside, with the reason shown.</p></div>
+        <div class="card feature"><div class="ico">✎</div><h3>Tailored per job</h3><p class="muted small">Headline, summary, skills order and bullet points are rewritten for each role, and a PDF is made for it.</p></div>
+        <div class="card feature"><div class="ico">✉</div><h3>Your own mailbox</h3><p class="muted small">Applications go from your address with safe daily limits, so recruiters reply to you directly.</p></div>
+        <div class="card feature"><div class="ico">★</div><h3>AI resume studio</h3><p class="muted small">Improve your summary, bullets, skills and cover letter. The AI works only on your resume and never makes up facts.</p></div>
+        <div class="card feature"><div class="ico">▦</div><h3>Application tracker</h3><p class="muted small">Every email, reply and follow-up in one place, with filters by country, field and source.</p></div>
+        <div class="card feature"><div class="ico">⚙</div><h3>Run on your schedule</h3><p class="muted small">Every few hours or at set times, from any device. Turn it off whenever you like.</p></div>
+      </div>
+    </div></section>
+
+    <section class="block" id="plans">
+      <div class="section-head"><div class="eyebrow">Payment plans</div><h2>Simple monthly plans</h2><p>Create your profile for free. Choose a plan to switch the bot on, edit your profile, and use the AI resume studio.</p></div>
+      <div class="tabs" id="marketTabs"></div>
+      <div class="grid" id="planList"><p class="muted">Loading plans…</p></div>
+    </section>
+
+    <section class="alt" id="contact"><div class="in">
+      <div class="grid2">
+        <div class="section-head"><div class="eyebrow">Contact</div><h2>Talk to us</h2><p>Questions about plans, partnerships or your account? Send us a message and we will reply by email, usually within one working day.</p></div>
+        <form class="card" onsubmit="enquire(event)">
+          <div class="grid"><div><label>Name</label><input name="name" required maxlength="100"></div><div><label>Email</label><input name="email" type="email" required maxlength="200"></div></div>
+          <div class="grid"><div><label>Phone (optional)</label><input name="phone" maxlength="40"></div><div><label>Topic</label><select name="topic"><option>job seeker</option><option>business</option><option>partnership</option><option>support</option><option>other</option></select></div></div>
+          <label>Message</label><textarea name="message" required minlength="5"></textarea>
+          <input name="website" class="hidden" tabindex="-1" autocomplete="off">
+          <div style="margin-top:14px"><button class="btn primary">Send message</button></div><div id="enqMsg"></div>
+        </form>
+      </div>
+    </div></section>
+  </div>
+
+  <div id="pubRegister" class="auth-wrap hidden"><div class="card auth">
+    <div class="eyebrow">Step 1 of 5</div><h2>Create your account</h2><p class="muted small">Free to set up. You choose a plan when you are ready to start applying.</p>
+    <form id="registerForm" onsubmit="register(event)">
+      <label>Country</label><select name="market" id="regMarket"></select>
+      <label>Full name</label><input name="name" required autocomplete="name" maxlength="100">
+      <label>Email</label><input name="email" type="email" required autocomplete="email">
+      <label>Password (10 characters or more)</label><input name="password" type="password" minlength="10" required autocomplete="new-password">
+      <label class="toggle" style="margin-top:14px;font-weight:500"><input type="checkbox" required id="regTerms"><span class="small">I agree that JobPilot may process my resume to find and apply for jobs on my behalf, only as I set up.</span></label>
+      <div style="margin-top:16px"><button class="btn primary lg" style="width:100%">Create account</button></div>
+    </form>
+    <div id="regMsg"></div>
+    <p class="small muted center" style="margin-top:14px">Already have an account? <a href="#" onclick="show('login');return false">Sign in</a></p>
+  </div></div>
+
+  <div id="pubLogin" class="auth-wrap hidden"><div class="card auth">
+    <h2>Welcome back</h2><p class="muted small">Sign in to your JobPilot account.</p>
+    <form id="loginForm" onsubmit="login(event)">
+      <label>Email</label><input name="email" type="email" required autocomplete="email">
+      <label>Password</label><input name="password" type="password" required autocomplete="current-password">
+      <div style="margin-top:16px"><button class="btn primary lg" style="width:100%">Sign in</button></div>
+    </form>
+    <div id="loginMsg"></div>
+    <p class="small muted center" style="margin-top:14px">New here? <a href="#" onclick="show('register');return false">Create an account</a></p>
+  </div></div>
+
+  <footer class="site"><div class="in"><div><b>JobPilot</b> · multi job application system</div><div class="row"><a href="#about" onclick="show('home')">About</a><a href="#plans" onclick="show('home')">Plans</a><a href="#contact" onclick="show('home')">Contact</a></div></div></footer>
+</div>
+
+<!-- ================= first-time set-up ================= -->
+<div id="onboarding" class="hidden">
+  <header class="nav-top"><div class="in"><span class="logo"><i>J</i>JobPilot</span><div style="flex:1"></div><span class="small muted" id="onbWho"></span><button class="btn ghost sm" onclick="signOut()">Sign out</button></div></header>
+  <div class="onb">
+    <div class="eyebrow">Set up your profile</div><h2>Let's get you ready to apply</h2>
+    <p class="muted">Four short steps. You can review everything before choosing a plan.</p>
+    <div class="stepper" id="stepper"></div>
+
+    <div class="card" data-step="details">
+      <h3>Your details</h3><p class="muted small">Used in your applications and to judge which jobs fit you.</p>
+      <div class="grid"><div><label>Full name</label><input data-d="full_name" maxlength="100"></div><div><label>Phone</label><input data-d="phone" maxlength="40"></div></div>
+      <div class="grid"><div><label>City</label><input data-d="city" maxlength="80"></div><div><label>Country</label><input data-d="country" maxlength="60"></div></div>
+      <div class="grid"><div><label>Current or last job title</label><input data-d="current_title" maxlength="100"></div><div><label>Years of experience</label><input data-d="years_experience" inputmode="decimal" maxlength="5"></div></div>
+      <div class="grid"><div><label>Highest education</label><input data-d="highest_education" maxlength="120"></div><div><label>Notice period</label><input data-d="notice_period" maxlength="40" placeholder="Immediate, 30 days…"></div></div>
+      <div class="grid"><div><label>Expected salary (optional)</label><input data-d="expected_salary" maxlength="60"></div><div><label>Languages</label><input data-d="languages" maxlength="200" placeholder="English, Hindi"></div></div>
+      <div class="grid"><div><label>LinkedIn (optional)</label><input data-d="linkedin" maxlength="200"></div><div><label>Portfolio or website (optional)</label><input data-d="portfolio" maxlength="200"></div></div>
+      <label>Work authorization (optional)</label><input data-d="work_authorization" maxlength="200" placeholder="e.g. Indian citizen; open to employer visa sponsorship">
+      <div class="row between" style="margin-top:18px"><span></span><button class="btn primary" onclick="onbSaveDetails()">Save and continue</button></div><div id="onbDetailsMsg"></div>
+    </div>
+
+    <div class="card hidden" data-step="resume">
+      <h3>Your resume</h3><p class="muted small">Upload a PDF, DOCX or TXT (700 KB at most). We read it and fill in the fields; check them carefully, because every application is written only from what is here.</p>
+      <div class="drop"><input type="file" id="onbResumeFile" accept=".pdf,.docx,.txt" style="max-width:360px;margin:auto;display:block"><div style="margin-top:12px"><button class="btn primary" onclick="uploadResume('onbResumeFile','onbResumeMsg', true)">Upload and read</button></div></div>
+      <div id="onbResumeMsg"></div>
+      <div id="onbResumeView" class="hidden">
+        <div class="grid"><div><label>Full name</label><input id="oName"></div><div><label>Headline</label><input id="oHeadline"></div></div>
+        <label>Summary</label><textarea id="oSummary"></textarea>
+        <details><summary>Experience, skills and education (advanced)</summary><textarea id="oJson" style="min-height:260px;font-family:ui-monospace,Consolas,monospace;font-size:12px"></textarea></details>
+      </div>
+      <div class="row between" style="margin-top:18px"><button class="btn" onclick="onbGo('details')">Back</button><button class="btn primary" onclick="onbSaveResume()">Save and continue</button></div><div id="onbResume2Msg"></div>
+    </div>
+
+    <div class="card hidden" data-step="cover">
+      <h3>Your cover letter</h3><p class="muted small">Optional but recommended: we follow its voice in every application email. Paste it, or upload a file.</p>
+      <div class="row"><input type="file" id="onbCoverFile" accept=".pdf,.docx,.txt" style="max-width:340px"><button class="btn" onclick="uploadCover('onbCoverFile','onbCover','onbCoverMsg')">Upload</button></div>
+      <label>Cover letter</label><textarea id="onbCover" style="min-height:220px" maxlength="6000" placeholder="Dear Hiring Manager, …"></textarea>
+      <div class="row between" style="margin-top:18px"><button class="btn" onclick="onbGo('resume')">Back</button><div class="row"><button class="btn ghost" onclick="onbGo('jobs')">Skip for now</button><button class="btn primary" onclick="onbSaveCover()">Save and continue</button></div></div><div id="onbCoverMsg"></div>
+    </div>
+
+    <div class="card hidden" data-step="jobs">
+      <h3>Jobs to apply for</h3><p class="muted small">We suggested these from your resume. Click to keep or remove; add your own below. Only jobs whose title is one of your roles are ever applied to.</p>
+      <div id="sugMsg" class="msg info">Reading your resume for suggestions…</div>
+      <label>Job titles (the roles you want)</label><div class="chipset" id="cTitles"></div><input id="xTitles" placeholder="Add more, comma separated" style="margin-top:8px">
+      <label>Your main skills</label><div class="chipset" id="cSkills"></div><input id="xSkills" placeholder="Add more, comma separated" style="margin-top:8px">
+      <label>Search keywords</label><div class="chipset" id="cKeywords"></div><input id="xKeywords" placeholder="Add more, comma separated" style="margin-top:8px">
+      <label>Never apply to titles containing</label><div class="chipset" id="cAvoid"></div><input id="xAvoid" placeholder="e.g. intern, sales" style="margin-top:8px">
+      <label>Countries and cities (add "Remote" for remote work anywhere)</label><input id="oCountries" placeholder="India, Bengaluru, Remote">
+      <label class="toggle" style="margin-top:10px;font-weight:500"><input type="checkbox" id="oRelocate"><span>I am willing to relocate for on-site jobs abroad</span></label>
+      <label>Kinds of work</label><div class="grid" id="oTypes"></div>
+      <div class="row between" style="margin-top:18px"><button class="btn" onclick="onbGo('cover')">Back</button><button class="btn primary" onclick="onbFinish()">Finish set-up</button></div><div id="onbJobsMsg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= the app ================= -->
+<div id="app" class="app hidden">
+  <aside class="side">
+    <div class="logo"><i>J</i>JobPilot</div>
+    <div class="nav on" data-tab="home">⌂ Overview</div>
+    <div class="grp">Profile</div>
+    <div class="nav" data-tab="details">☺ My details</div>
+    <div class="nav" data-tab="resume">▤ Resume</div>
+    <div class="nav" data-tab="cover">✉ Cover letter</div>
+    <div class="nav" data-tab="targets">◎ Job preferences</div>
+    <div class="nav" data-tab="studio">★ AI resume studio</div>
+    <div class="grp">Applications</div>
+    <div class="nav" data-tab="queue">✓ Review queue</div>
+    <div class="nav" data-tab="applications">▦ Applications</div>
+    <div class="nav" data-tab="mailbox">⚙ Mailbox</div>
+    <div class="grp">Account</div>
+    <div class="nav" data-tab="account">₹ Plan and billing</div>
+    <div class="nav" data-tab="help">? Help and feedback</div>
+    <div class="foot small muted" style="margin-top:auto;padding:12px" id="whoami"></div>
+  </aside>
+  <main class="main">
+    <div class="banner hidden" id="payBanner"><div><b id="bannerTitle">Your profile is ready</b><p id="bannerText">Choose a plan to switch the bot on, edit your profile and use the AI resume studio.</p></div><button class="btn" onclick="go('account')">Choose a plan</button></div>
+
+    <section data-page="home">
+      <div class="page-head"><div><h2 id="hello">Welcome</h2><p class="muted small" id="planLine"></p></div>
+        <div class="card row" style="padding:14px 18px"><div><b>Job bot</b><div class="small muted" id="botText">off</div></div><button class="switch" id="botSwitch" aria-label="Turn the bot on or off"></button></div></div>
+      <div id="homeMsg"></div>
+      <div class="grid" style="margin-bottom:16px">
+        <div class="card kcard"><div class="muted">Found today</div><div class="kpi" id="kFound">–</div></div>
+        <div class="card kcard"><div class="muted">Waiting for you</div><div class="kpi" id="kWaiting">–</div></div>
+        <div class="card kcard"><div class="muted">Sent today</div><div class="kpi" id="kSentToday">–</div></div>
+        <div class="card kcard"><div class="muted">Sent in total</div><div class="kpi" id="kSent">–</div></div>
+        <div class="card kcard"><div class="muted">Replies</div><div class="kpi" id="kReplies">–</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h3>Getting started</h3><div id="checklist"></div></div>
+        <div class="card"><h3>Latest applications</h3><div id="recent" class="small"></div></div>
+      </div>
+      <div class="card" style="margin-top:16px"><h3>Schedule</h3>
+        <fieldset class="paidonly">
+        <div class="grid">
+          <div><label>Run</label><select id="sKind" onchange="schedForm()"><option value="interval">Every few hours</option><option value="daily">At a set time on chosen days</option></select></div>
+          <div id="sEveryBox"><label>Every</label><select id="sEvery"><option value="60">1 hour</option><option value="120">2 hours</option><option value="240">4 hours</option><option value="480">8 hours</option><option value="720">12 hours</option></select></div>
+          <div id="sAtBox" class="hidden"><label>At (your time)</label><input type="time" id="sAt" value="09:00"></div>
+        </div>
+        <div id="sDaysBox" class="hidden"><label>On</label><div class="chipset" id="sDays"></div></div>
+        <div class="row" style="margin-top:14px"><button class="btn primary" onclick="saveSchedule()">Save schedule</button><button class="btn" onclick="runNow()">Run once now</button></div>
+        </fieldset><div id="schedMsg"></div>
+      </div>
+    </section>
+
+    <section data-page="details" class="hidden">
+      <div class="page-head"><div><h2>My details</h2><p class="muted small">Used in applications and to judge fit.</p></div></div>
+      <fieldset class="lockable"><div class="card">
+        <div class="grid"><div><label>Full name</label><input data-d="full_name"></div><div><label>Phone</label><input data-d="phone"></div><div><label>City</label><input data-d="city"></div><div><label>Country</label><input data-d="country"></div></div>
+        <div class="grid"><div><label>Current or last job title</label><input data-d="current_title"></div><div><label>Years of experience</label><input data-d="years_experience"></div><div><label>Highest education</label><input data-d="highest_education"></div><div><label>Notice period</label><input data-d="notice_period"></div></div>
+        <div class="grid"><div><label>Expected salary</label><input data-d="expected_salary"></div><div><label>Languages</label><input data-d="languages"></div><div><label>LinkedIn</label><input data-d="linkedin"></div><div><label>Portfolio</label><input data-d="portfolio"></div></div>
+        <label>Work authorization</label><input data-d="work_authorization">
+        <div style="margin-top:16px"><button class="btn primary" onclick="saveDetails('#app')">Save details</button></div><div id="detailsMsg"></div>
+      </div></fieldset>
+    </section>
+
+    <section data-page="resume" class="hidden">
+      <div class="page-head"><div><h2>Resume</h2><p class="muted small">Every application is written only from what is here. Keep it accurate and complete.</p></div></div>
+      <fieldset class="lockable">
+      <div class="card" style="margin-bottom:16px"><div class="row"><input type="file" id="resumeFile" accept=".pdf,.docx,.txt" style="max-width:360px"><button class="btn primary" onclick="uploadResume('resumeFile','upMsg')">Upload a new version</button></div><div id="upMsg"></div></div>
+      <div class="card">
+        <div class="grid"><div><label>Full name</label><input id="rName"></div><div><label>Headline</label><input id="rHeadline"></div></div>
+        <div class="grid"><div><label>Email</label><input id="rEmail"></div><div><label>Phone</label><input id="rPhone"></div><div><label>Location</label><input id="rLocation"></div></div>
+        <label>Links (one per line)</label><textarea id="rLinks" style="min-height:60px"></textarea>
+        <label>Summary</label><textarea id="rSummary"></textarea>
+        <details style="margin-top:10px"><summary>Experience, skills, education and more (advanced editor)</summary><textarea id="rJson" style="min-height:320px;font-family:ui-monospace,Consolas,monospace;font-size:12px"></textarea></details>
+        <div style="margin-top:14px"><button class="btn primary" onclick="saveResume()">Save resume</button></div><div id="resumeMsg"></div>
+      </div></fieldset>
+    </section>
+
+    <section data-page="cover" class="hidden">
+      <div class="page-head"><div><h2>Cover letter</h2><p class="muted small">Every application email follows the voice of this letter, tailored to the job.</p></div></div>
+      <fieldset class="lockable"><div class="card">
+        <div class="row"><input type="file" id="coverFile" accept=".pdf,.docx,.txt" style="max-width:340px"><button class="btn" onclick="uploadCover('coverFile','coverText','coverMsg')">Upload</button></div>
+        <label>Cover letter</label><textarea id="coverText" style="min-height:300px" maxlength="6000"></textarea>
+        <div class="row" style="margin-top:14px"><button class="btn primary" onclick="saveCover()">Save cover letter</button><button class="btn" onclick="go('studio'); setTimeout(() => {$('aiTask').value='cover_improve'; aiTaskChanged();}, 50)">Improve with AI</button></div><div id="coverMsg"></div>
+      </div></fieldset>
+    </section>
+
+    <section data-page="targets" class="hidden">
+      <div class="page-head"><div><h2>Job preferences</h2><p class="muted small">Only jobs whose title is one of your roles are kept; the AI then confirms each one fits your resume.</p></div><button class="btn" onclick="suggestInto()" id="sugBtn">Suggest from my resume</button></div>
+      <fieldset class="lockable"><div class="card">
+        <label>Countries and cities (comma separated; add "Remote" for remote work anywhere)</label><input id="tCountries" placeholder="India, Germany, Singapore, Remote">
+        <label class="toggle" style="margin-top:10px;font-weight:500"><input type="checkbox" id="tRelocate"><span>I am willing to relocate for on-site jobs abroad</span></label>
+        <label>Countries where you want remote work only (optional)</label><input id="tRemoteOnly">
+        <label>Kinds of work</label><div class="grid" id="tTypes"></div>
+        <div class="grid"><div><label>Job titles to aim for</label><input id="tTitles" placeholder="Data Analyst, BI Analyst"></div>
+          <div><label>Your main skills</label><input id="tSkills" placeholder="SQL, Power BI, Excel"></div></div>
+        <div class="grid"><div><label>Search keywords (full time)</label><input id="tKeywords"></div><div><label>Search keywords (part time / freelance)</label><input id="tPartKeywords"></div></div>
+        <label>Never apply to titles containing</label><input id="tAvoid" placeholder="intern, sales">
+        <div class="grid"><div><label>How closely a job must match (0–100): <b id="tScoreVal"></b></label><input type="range" id="tScore" min="0" max="100"></div>
+          <div><label>Emails per day (your plan allows <b id="tCap"></b>)</label><input type="number" id="tLimit" min="1"></div>
+          <div><label>Sending</label><select id="tReview"><option value="manual">I approve every email</option><option value="auto">Send automatically</option></select></div></div>
+        <div style="margin-top:16px"><button class="btn primary" onclick="saveTargets()">Save preferences</button></div><div id="targetMsg"></div>
+      </div></fieldset>
+    </section>
+
+    <section data-page="studio" class="hidden">
+      <div class="page-head"><div><h2>AI resume studio</h2><p class="muted small">The AI helps only with your resume and cover letter, and uses only facts you gave. Anything that looks new is flagged for you to check.</p></div><span class="pill" id="aiLeft"></span></div>
+      <fieldset class="paidonly"><div class="grid2">
+        <div class="card">
+          <label>What should the AI do?</label>
+          <select id="aiTask" onchange="aiTaskChanged()">
+            <option value="review">Review my resume and suggest improvements</option>
+            <option value="summary">Rewrite my summary</option>
+            <option value="headline">Write a headline</option>
+            <option value="bullets">Improve these bullet points</option>
+            <option value="skills">Group my skills</option>
+            <option value="cover_write">Write a cover letter from my resume</option>
+            <option value="cover_improve">Improve my cover letter</option>
+            <option value="ask">Ask something about my resume</option>
+          </select>
+          <div id="aiTextBox" class="hidden"><label id="aiTextLabel">Text</label><textarea id="aiText" style="min-height:160px"></textarea></div>
+          <div id="aiAskBox" class="hidden"><label>Your request (resume or cover letter only)</label><input id="aiAsk" maxlength="400" placeholder="e.g. Make my summary suit hospital ICU roles in the UAE"></div>
+          <div style="margin-top:14px"><button class="btn primary" onclick="aiRun()" id="aiBtn">Run</button></div>
+        </div>
+        <div class="card"><div class="row between"><h3>Result</h3><div class="row" id="aiApply"></div></div><div class="ai-out" id="aiOut"><span class="muted">The AI's answer appears here.</span></div><div id="aiMsg"></div></div>
+      </div></fieldset>
+    </section>
+
+    <section data-page="mailbox" class="hidden">
+      <div class="page-head"><div><h2>Your mailbox</h2><p class="muted small">Applications are sent from your own address, so replies reach you directly. For Gmail, create an
+        <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">app password</a> (two-step sign-in must be on). Your password is stored only in your account's own file and never shown again.</p></div></div>
+      <fieldset class="paidonly"><div class="card"><div id="boxList" class="small"></div>
+        <div class="grid"><div><label>Email address</label><input id="mEmail" type="email"></div><div><label>App password</label><input id="mPass" type="password" autocomplete="new-password"></div>
+          <div><label>Mail server (SMTP)</label><input id="mSmtp" value="smtp.gmail.com"></div></div>
+        <div class="row" style="margin-top:14px"><button class="btn primary" onclick="saveMailbox()">Connect</button><button class="btn" onclick="testMailbox()">Test sign-in</button></div><div id="mailMsg"></div></div></fieldset>
+    </section>
+
+    <section data-page="queue" class="hidden">
+      <div class="page-head"><h2>Review queue</h2>
+        <div class="row"><input id="qSearch" placeholder="Search title, company, place" style="width:220px" onkeydown="if(event.key==='Enter')loadQueue()">
+          <select id="qStage" onchange="clearFilters();loadQueue()" style="width:auto"><option value="review">Ready for your approval</option><option value="approved">Approved, waiting to send</option>
+            <option value="matched">Matched, being prepared</option><option value="found">All jobs found (pick by hand)</option><option value="skipped">Set aside by the bot (with reason)</option></select></div></div>
+      <p class="muted small" id="qHelp"></p>
+      <div class="card" style="margin-bottom:12px"><div class="grid" id="qFilters"></div><div class="small muted" id="qCount" style="margin-top:8px"></div></div>
+      <div id="queueList"></div>
+    </section>
+
+    <section data-page="applications" class="hidden">
+      <h2>Applications sent</h2>
+      <div class="card" style="margin-bottom:12px"><div class="grid" id="aFilters"></div><div class="small muted" id="aCount" style="margin-top:8px"></div></div>
+      <div class="card wrap"><table><thead><tr><th>Sent</th><th>Job</th><th>Company</th><th>Country</th><th>Type · sector</th><th>Source · posted</th><th>To</th><th>Result</th></tr></thead><tbody id="appRows"></tbody></table></div>
+    </section>
+
+    <section data-page="account" class="hidden">
+      <h2>Plan and billing</h2>
+      <div id="billMsg"></div>
+      <div class="card" id="accountCard"></div>
+      <h3 style="margin-top:20px">Choose a plan</h3>
+      <div class="grid" id="buyPlans"></div>
+      <div class="card hidden" id="payBox" style="margin-top:16px"></div>
+      <h3 style="margin-top:20px">Payments</h3>
+      <div class="card wrap"><table><thead><tr><th>Date</th><th>Plan</th><th>Amount</th><th>Method</th><th>Status</th><th>Reference</th><th>Valid until</th></tr></thead><tbody id="payRows"></tbody></table></div>
+      <div style="margin-top:16px" class="row"><button class="btn danger" onclick="signOut()">Sign out</button></div>
+    </section>
+
+    <section data-page="help" class="hidden">
+      <h2>Help and feedback</h2>
+      <div class="grid2">
+        <div class="card"><h3>Customer support</h3><p class="muted small">Something not working, or a question about your account? Our reply appears below.</p>
+          <form onsubmit="sendTicket(event, 'support')">
+            <label>About</label><select name="category"><option>account and sign-in</option><option>billing and plans</option><option>resume</option><option>mailbox and sending</option><option>jobs and matching</option><option>bug</option><option>other</option></select>
+            <label>Subject</label><input name="subject" required maxlength="150"><label>Message</label><textarea name="message" required></textarea>
+            <div style="margin-top:12px"><button class="btn primary">Send to support</button></div><div id="supMsg"></div></form></div>
+        <div class="card"><h3>Feedback</h3><p class="muted small">Tell us what works and what should be better.</p>
+          <form onsubmit="sendTicket(event, 'feedback')">
+            <label>Your rating</label><div class="row" id="stars"></div><input type="hidden" name="rating" id="ratingVal">
+            <label>What would you like to tell us?</label><textarea name="message" required></textarea>
+            <div style="margin-top:12px"><button class="btn primary">Send feedback</button></div><div id="fbMsg"></div></form></div>
+      </div>
+      <h3 style="margin-top:20px">Your messages</h3><div id="ticketList"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+const KEY = "jobpilot.token";
+let token = null, plans = [], markets = [], overviewData = null, access = null;
+try { token = localStorage.getItem(KEY); } catch (e) {}
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const list = v => (Array.isArray(v) ? v : String(v || "").split(",")).map(x => x.trim()).filter(Boolean);
+function msg(id, text, ok = true) { $(id).innerHTML = text ? `<div class="msg ${ok === "info" ? "info" : ok ? "ok" : "bad"}">${esc(text)}</div>` : ""; }
+
+async function api(method, path, body) {
+  const res = await fetch(path, {method, headers: {"Content-Type": "application/json", ...(token ? {Authorization: "Bearer " + token} : {})},
+                                 body: body ? JSON.stringify(body) : undefined});
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && token) { signOut(); throw new Error("Please sign in again."); }
+  if (res.status === 402) { refreshAccess(); }
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+/* ---------- public site ---------- */
+function show(view) {
+  $("pubHome").classList.toggle("hidden", view !== "home");
+  $("pubRegister").classList.toggle("hidden", view !== "register");
+  $("pubLogin").classList.toggle("hidden", view !== "login");
+  if (view !== "home") window.scrollTo(0, 0);
+}
+const SYMBOL = {INR: "₹", TWD: "NT$", AED: "AED ", NPR: "Rs ", CNY: "¥", JPY: "¥", KRW: "₩", USD: "$"};
+const money = (p) => p.price_month ? (SYMBOL[p.currency] || p.currency + " ") + Number(p.price_month).toLocaleString() : "Free";
+const planPoints = p => p.price_month ? [`Up to ${p.daily_cap} tailored applications a day`, `${p.mailboxes} sending mailbox${p.mailboxes > 1 ? "es" : ""}`,
+    "Role match + AI fit check on every job", "AI resume studio", "Edit your profile any time"] : ["Create your profile", "Resume and cover letter reading", "Job title suggestions", "Bot stays off until you choose a plan"];
+async function loadPlans() {
+  try {
+    const r = await api("GET", "/plans");
+    plans = r.plans; markets = r.markets;
+    $("regMarket").innerHTML = markets.map(m => `<option value="${esc(m.code)}" ${m.live ? "" : "disabled"}>${esc(m.name)}${m.live ? "" : " (coming soon)"}</option>`).join("");
+    $("marketTabs").innerHTML = markets.map(m => `<div class="tab" data-market="${esc(m.code)}" onclick="showPlans('${esc(m.code)}')">${esc(m.name)}${m.live ? "" : " · soon"}</div>`).join("");
+    showPlans((markets.find(m => m.live) || markets[0] || {}).code);
+  } catch (e) { $("planList").innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
+}
+function showPlans(code) {
+  document.querySelectorAll("[data-market]").forEach(t => t.classList.toggle("on", t.dataset.market === code));
+  const m = markets.find(x => x.code === code), list = plans.filter(p => p.market === code);
+  const best = list.filter(p => p.price_month > 0)[1]?.name;
+  $("planList").innerHTML = list.length ? list.map(p => `<div class="card plan ${p.name === best ? "best" : ""}">${p.name === best ? '<span class="tag">Most popular</span>' : ""}<h3>${esc(p.price_month ? p.title : "Free profile")}</h3>
+      <div class="price">${money(p)}<span class="small muted" style="font-weight:500">${p.price_month ? " / month" : ""}</span></div>
+      <ul>${planPoints(p).map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+      <button class="btn ${p.price_month ? "primary" : ""}" onclick="show('register')">${p.price_month ? "Start with " + esc(p.title) : "Create free profile"}</button></div>`).join("")
+    : `<div class="card"><h3>${esc(m?.name || "")}: coming soon</h3><p class="muted small">We are opening here soon. Leave your details in the contact form and we will tell you first.</p><a class="btn" href="#contact">Get notified</a></div>`;
+}
+async function register(ev) {
+  ev.preventDefault();
+  const f = Object.fromEntries(new FormData(ev.target));
+  f.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  try { const r = await api("POST", "/register", f); setToken(r.token); start(); }
+  catch (e) { msg("regMsg", e.message, false); }
+}
+async function login(ev) {
+  ev.preventDefault();
+  try { const r = await api("POST", "/login", Object.fromEntries(new FormData(ev.target))); setToken(r.token); start(); }
+  catch (e) { msg("loginMsg", e.message === "wrong" ? "Wrong email or password." : e.message, false); }
+}
+async function enquire(ev) {
+  ev.preventDefault();
+  try { await api("POST", "/enquiries", Object.fromEntries(new FormData(ev.target))); ev.target.reset(); msg("enqMsg", "Thank you. We have your message and will reply by email."); }
+  catch (e) { msg("enqMsg", e.message, false); }
+}
+function setToken(t) { token = t; try { localStorage.setItem(KEY, t); } catch (e) {} }
+function signOut() { api("POST", "/logout").catch(() => {}); token = null; try { localStorage.removeItem(KEY); sessionStorage.clear(); } catch (e) {} location.hash = ""; location.reload(); }
+
+/* ---------- after sign-in ---------- */
+let me = null;
+async function start() {
+  try { me = await api("GET", "/me"); } catch (e) { return; }
+  $("site").classList.add("hidden");
+  access = await api("GET", "/portal/access");
+  if (!access.onboarded) return startOnboarding();
+  $("onboarding").classList.add("hidden"); $("app").classList.remove("hidden");
+  $("whoami").textContent = me.user.email; $("hello").textContent = "Welcome, " + (me.user.name || "there");
+  applyAccess();
+  let tab = "home"; try { tab = sessionStorage.getItem("jobpilot.tab") || "home"; } catch (e) {}
+  go(tab);
+}
+async function refreshAccess() { try { access = await api("GET", "/portal/access"); applyAccess(); } catch (e) {} }
+function applyAccess() {
+  if (!access || $("app").classList.contains("hidden")) return;
+  const locked = access.locked, paid = access.paid;
+  document.body.classList.toggle("locked", locked);
+  document.querySelectorAll("fieldset.lockable").forEach(f => f.disabled = locked);
+  document.querySelectorAll("fieldset.paidonly").forEach(f => f.disabled = !paid);
+  $("botSwitch").disabled = !paid;
+  $("payBanner").classList.toggle("hidden", paid);
+  $("bannerTitle").textContent = access.paid_until ? "Your plan has ended" : "Your profile is ready";
+  $("bannerText").textContent = access.paid_until ? "Renew to switch the bot back on and edit your profile." : "Choose a plan to switch the bot on, edit your profile and use the AI resume studio.";
+  document.querySelectorAll(".nav").forEach(n => { n.querySelector(".lock")?.remove();
+    if (!paid && ["details", "resume", "cover", "targets", "studio", "mailbox"].includes(n.dataset.tab)) n.insertAdjacentHTML("beforeend", '<span class="lock">🔒</span>'); });
+}
+
+/* ---------- first-time set-up ---------- */
+const STEPS = [["details", "Your details"], ["resume", "Resume"], ["cover", "Cover letter"], ["jobs", "Jobs to apply for"]];
+let onbStep = "details", resumeDoc = null, sug = {};
+async function startOnboarding() {
+  $("onboarding").classList.remove("hidden"); $("app").classList.add("hidden");
+  $("onbWho").textContent = me.user.email;
+  const d = await api("GET", "/portal/details");
+  fillDetails("#onboarding", {full_name: me.user.name, ...d});
+  const first = access.steps.find(s => !s.done && s.key !== "cover");
+  onbGo(first ? first.key : "jobs");
+}
+function onbGo(step) {
+  onbStep = step;
+  const doneKeys = (access?.steps || []).filter(s => s.done).map(s => s.key);
+  $("stepper").innerHTML = STEPS.map(([k, t], i) => `<div class="${k === step ? "on" : doneKeys.includes(k) ? "done" : ""}"><small>Step ${i + 2}</small>${doneKeys.includes(k) && k !== step ? "✓ " : ""}${t}</div>`).join("");
+  document.querySelectorAll("[data-step]").forEach(c => c.classList.toggle("hidden", c.dataset.step !== step));
+  if (step === "resume") loadOnbResume();
+  if (step === "cover") api("GET", "/portal/cover-letter").then(c => $("onbCover").value = c.text || "");
+  if (step === "jobs") loadSuggestions();
+  window.scrollTo(0, 0);
+}
+async function onbNext(step) { access = await api("GET", "/portal/access"); onbGo(step); }
+function readDetails(scope) { const d = {}; document.querySelectorAll(`${scope} [data-d]`).forEach(i => d[i.dataset.d] = i.value.trim()); return d; }
+function fillDetails(scope, d) { document.querySelectorAll(`${scope} [data-d]`).forEach(i => i.value = d[i.dataset.d] || ""); }
+async function onbSaveDetails() {
+  try { await api("PUT", "/portal/details", readDetails("#onboarding")); onbNext("resume"); } catch (e) { msg("onbDetailsMsg", e.message, false); }
+}
+async function loadOnbResume() {
+  const r = (await api("GET", "/portal/resume")).content;
+  const real = r.name && access.steps.find(s => s.key === "resume").done;
+  if (real) showOnbResume(r);
+}
+function showOnbResume(r) {
+  resumeDoc = r; $("onbResumeView").classList.remove("hidden");
+  $("oName").value = r.name || ""; $("oHeadline").value = r.headline || ""; $("oSummary").value = r.summary || "";
+  const rest = {...r}; ["name", "headline", "summary"].forEach(k => delete rest[k]); $("oJson").value = JSON.stringify(rest, null, 2);
+}
+async function onbSaveResume() {
+  if (!resumeDoc) return msg("onbResume2Msg", "Upload your resume first.", false);
+  let rest; try { rest = JSON.parse($("oJson").value || "{}"); } catch (e) { return msg("onbResume2Msg", "The advanced section is not valid JSON: " + e.message, false); }
+  const content = {...rest, name: $("oName").value.trim(), headline: $("oHeadline").value.trim(), summary: $("oSummary").value.trim()};
+  try { await api("PUT", "/portal/resume", {content}); onbNext("cover"); } catch (e) { msg("onbResume2Msg", e.message, false); }
+}
+async function onbSaveCover() {
+  try { if ($("onbCover").value.trim()) await api("PUT", "/portal/cover-letter", {text: $("onbCover").value}); onbNext("jobs"); } catch (e) { msg("onbCoverMsg", e.message, false); }
+}
+function chips(target, items, on = true) {
+  $(target).innerHTML = items.map(x => `<span class="c ${on ? "on" : ""}" onclick="this.classList.toggle('on')">${esc(x)}</span>`).join("") || `<span class="small muted">None suggested; add your own below.</span>`;
+}
+const chosen = (target, extra) => [...new Set([...[...$(target).querySelectorAll(".c.on")].map(c => c.textContent), ...list($(extra).value)])];
+const TYPES = [["full_time", "Full-time jobs", "Permanent roles"], ["part_time", "Part-time and contract", "Hourly, temporary and contract roles"],
+               ["freelance", "Freelance projects", "Project work for clients"], ["government", "Government and semi-government", "Public bodies, institutes, PSUs"]];
+const typeBoxes = (target, t) => $(target).innerHTML = TYPES.map(([k, title, sub]) => `<label class="toggle"><input type="checkbox" data-type="${k}" ${t?.[k] ? "checked" : ""}><span><b>${title}</b><br><span class="small muted">${sub}</span></span></label>`).join("");
+async function loadSuggestions() {
+  const t = await api("GET", "/portal/targets");
+  $("oCountries").value = (t.countries || []).join(", "); $("oRelocate").checked = !!t.relocate; typeBoxes("oTypes", t.job_types);
+  msg("sugMsg", "Reading your resume for suggestions…", "info");
+  try {
+    sug = await api("POST", "/portal/suggest-targets");
+    chips("cTitles", sug.titles); chips("cSkills", sug.skills); chips("cKeywords", sug.keywords); chips("cAvoid", sug.avoid_titles);
+    msg("sugMsg", `Suggested from your resume (${sug.how}). Remove anything that does not fit.`, "info");
+  } catch (e) { chips("cTitles", []); chips("cSkills", []); chips("cKeywords", []); chips("cAvoid", []); msg("sugMsg", e.message, false); }
+}
+async function onbFinish() {
+  const titles = chosen("cTitles", "xTitles");
+  if (!titles.length) return msg("onbJobsMsg", "Choose at least one job title.", false);
+  const job_types = {}; document.querySelectorAll("#oTypes [data-type]").forEach(c => job_types[c.dataset.type] = c.checked);
+  const body = {titles, skills: chosen("cSkills", "xSkills"), keywords: chosen("cKeywords", "xKeywords"), avoid_titles: chosen("cAvoid", "xAvoid"),
+                part_time_keywords: sug.part_time_keywords || [], countries: list($("oCountries").value), relocate: $("oRelocate").checked, job_types};
+  try { await api("PUT", "/portal/targets", body); await api("POST", "/portal/onboarding/complete"); try { sessionStorage.setItem("jobpilot.tab", "account"); } catch (e) {} start(); }
+  catch (e) { msg("onbJobsMsg", e.message, false); }
+}
+
+/* ---------- app ---------- */
+document.querySelectorAll(".nav").forEach(n => n.onclick = () => go(n.dataset.tab));
+function go(tab) {
+  document.querySelectorAll(".nav").forEach(n => n.classList.toggle("on", n.dataset.tab === tab));
+  document.querySelectorAll("[data-page]").forEach(p => p.classList.toggle("hidden", p.dataset.page !== tab));
+  try { sessionStorage.setItem("jobpilot.tab", tab); } catch (e) {}
+  ({home: loadHome, details: loadDetails, resume: loadResume, cover: loadCover, targets: loadTargets, studio: loadStudio, mailbox: loadMailbox,
+    queue: loadQueue, applications: loadApps, account: loadAccount, help: loadHelp})[tab]?.().catch(e => console.warn(e));
+  window.scrollTo(0, 0);
+}
+async function loadHome() {
+  const o = overviewData = await api("GET", "/portal/overview");
+  const c = o.counts;
+  $("kFound").textContent = c.jobs_found_today; $("kWaiting").textContent = c.waiting_for_you;
+  $("kSentToday").textContent = c.sent_today; $("kSent").textContent = c.sent_total; $("kReplies").textContent = c.replies;
+  $("planLine").textContent = access.paid ? `${o.plan.title} plan · up to ${o.plan.daily_cap} applications a day · paid until ${(access.paid_until || "").slice(0, 10)}` : "Free profile · choose a plan to start applying";
+  const steps = [...o.checklist.slice(0, 2), {step: "Choose a plan", done: access.paid, tab: "account"}, ...o.checklist.slice(2)];
+  $("checklist").innerHTML = steps.map((s, i) => `<div class="check"><div class="dot ${s.done ? "done" : ""}">${s.done ? "✓" : i + 1}</div>
+    <div style="flex:1">${esc(s.step)}</div>${s.done ? "" : `<button class="btn sm" onclick="go('${s.tab}')">Do it</button>`}</div>`).join("");
+  $("recent").innerHTML = o.recent.length ? o.recent.map(r => `<div class="check"><div style="flex:1"><b>${esc(r.title)}</b><div class="muted">${esc(r.company)} · ${esc((r.sent_at || "").slice(0, 10))}</div></div>
+    ${r.outcome ? `<span class="pill ${r.outcome === "replied" ? "ok" : "bad"}">${esc(r.outcome)}</span>` : ""}</div>`).join("") : `<p class="muted">Nothing sent yet.</p>`;
+  const on = o.bot.on, running = o.bot.running, s = o.bot.schedules[0];
+  $("botSwitch").classList.toggle("on", on);
+  $("botText").textContent = !access.paid ? "locked: choose a plan" : on ? (running ? "on · running now" : "on · " + describe(s)) : "off";
+  fillSchedule(s);
+}
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+function describe(s) {
+  if (!s) return "no schedule";
+  return s.kind === "daily" ? `${s.at} on ${(s.days || []).map(d => DAYS[d]).join(", ")}` : `every ${s.every_minutes >= 60 ? s.every_minutes / 60 + " h" : s.every_minutes + " min"}`;
+}
+function fillSchedule(s) {
+  $("sDays").innerHTML = DAYS.map((d, i) => `<label class="c" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-day="${i}" style="width:auto" ${!s || s.kind !== "daily" ? (i < 5 ? "checked" : "") : (s.days || []).includes(i) ? "checked" : ""}> ${d}</label>`).join("");
+  if (s) { $("sKind").value = s.kind; if (s.kind === "daily") $("sAt").value = s.at || "09:00"; else $("sEvery").value = String(s.every_minutes); }
+  schedForm();
+}
+function schedForm() {
+  const daily = $("sKind").value === "daily";
+  $("sEveryBox").classList.toggle("hidden", daily); $("sAtBox").classList.toggle("hidden", !daily); $("sDaysBox").classList.toggle("hidden", !daily);
+}
+async function saveSchedule() {
+  const s = overviewData?.bot.schedules[0];
+  const body = $("sKind").value === "daily"
+    ? {name: "Job bot", kind: "daily", at: $("sAt").value, days: [...document.querySelectorAll("[data-day]:checked")].map(c => +c.dataset.day)}
+    : {name: "Job bot", kind: "interval", every_minutes: +$("sEvery").value};
+  try {
+    if (s) await api("PUT", `/schedules/${s.id}`, body);
+    else await api("POST", "/schedules", {...body, enabled: false});
+    msg("schedMsg", "Schedule saved."); loadHome();
+  } catch (e) { msg("schedMsg", e.message, false); }
+}
+async function runNow() {
+  try { const r = await api("POST", "/portal/bot/run"); msg("schedMsg", r.queued ? "A run has started." : "A run is already going."); loadHome(); }
+  catch (e) { msg("schedMsg", e.message, false); }
+}
+$("botSwitch").onclick = async () => {
+  const want = !$("botSwitch").classList.contains("on");
+  try { await api("POST", "/portal/bot/" + (want ? "on" : "off")); msg("homeMsg", want ? "The bot is on. The first run has started." : "The bot is off."); }
+  catch (e) { msg("homeMsg", e.message, false); }
+  loadHome();
+};
+async function loadDetails() { fillDetails("#app", await api("GET", "/portal/details")); }
+async function saveDetails(scope) {
+  try { await api("PUT", "/portal/details", readDetails(scope)); msg("detailsMsg", "Details saved."); } catch (e) { msg("detailsMsg", e.message, false); }
+}
+async function loadResume() { resumeDoc = (await api("GET", "/portal/resume")).content; fillResume(resumeDoc); }
+function fillResume(r) {
+  $("rName").value = r.name || ""; $("rHeadline").value = r.headline || ""; $("rEmail").value = r.contact?.email || "";
+  $("rPhone").value = r.contact?.phone || ""; $("rLocation").value = r.contact?.location || ""; $("rLinks").value = (r.contact?.links || []).join("\n");
+  $("rSummary").value = r.summary || "";
+  const rest = {...r}; ["name", "headline", "contact", "summary"].forEach(k => delete rest[k]);
+  $("rJson").value = JSON.stringify(rest, null, 2);
+}
+const readFile = file => new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result.split(",")[1]); fr.readAsDataURL(file); });
+async function uploadResume(input, out, onb = false) {
+  const file = $(input).files[0];
+  if (!file) return msg(out, "Choose a file first.", false);
+  if (file.size > 700000) return msg(out, "The file is too large (700 KB at most).", false);
+  msg(out, "Reading your resume…", "info");
+  try {
+    const r = await api("POST", "/portal/resume/upload", {filename: file.name, data_base64: await readFile(file)});
+    if (onb) { showOnbResume(r.resume); access = await api("GET", "/portal/access"); } else { resumeDoc = r.resume; fillResume(r.resume); }
+    msg(out, r.saved ? `Read and saved (${r.how}). Please check every field below.` : `Read, but not saved: ${r.problem}`, r.saved);
+  } catch (e) { msg(out, e.message, false); }
+}
+async function saveResume() {
+  let rest;
+  try { rest = JSON.parse($("rJson").value || "{}"); } catch (e) { return msg("resumeMsg", "The advanced section is not valid JSON: " + e.message, false); }
+  const content = {...rest, name: $("rName").value.trim(), headline: $("rHeadline").value.trim(), summary: $("rSummary").value.trim(),
+    contact: {...(resumeDoc?.contact || {}), email: $("rEmail").value.trim(), phone: $("rPhone").value.trim(), location: $("rLocation").value.trim(),
+              links: $("rLinks").value.split("\n").map(s => s.trim()).filter(Boolean)}};
+  if (!content.contact.links.length) content.contact.links = [""];
+  try { await api("PUT", "/portal/resume", {content}); resumeDoc = content; msg("resumeMsg", "Resume saved."); }
+  catch (e) { msg("resumeMsg", e.message, false); }
+}
+async function loadCover() { $("coverText").value = (await api("GET", "/portal/cover-letter")).text || ""; }
+async function saveCover() { try { await api("PUT", "/portal/cover-letter", {text: $("coverText").value}); msg("coverMsg", "Cover letter saved."); } catch (e) { msg("coverMsg", e.message, false); } }
+async function uploadCover(input, textarea, out) {
+  const file = $(input).files[0];
+  if (!file) return msg(out, "Choose a file first.", false);
+  try { const r = await api("POST", "/portal/cover-letter/upload", {filename: file.name, data_base64: await readFile(file)}); $(textarea).value = r.text; msg(out, "Read and saved. Check the text below."); }
+  catch (e) { msg(out, e.message, false); }
+}
+async function loadTargets() {
+  const t = await api("GET", "/portal/targets");
+  const o = overviewData || await api("GET", "/portal/overview");
+  $("tCountries").value = t.countries.join(", "); $("tRelocate").checked = !!t.relocate; $("tRemoteOnly").value = (t.remote_only_countries || []).join(", ");
+  typeBoxes("tTypes", t.job_types);
+  $("tTitles").value = t.titles.join(", "); $("tSkills").value = t.skills.join(", "); $("tKeywords").value = t.keywords.join(", ");
+  $("tPartKeywords").value = t.part_time_keywords.join(", "); $("tAvoid").value = t.avoid_titles.join(", ");
+  $("tScore").value = t.min_score; $("tScoreVal").textContent = t.min_score; $("tLimit").value = t.daily_limit; $("tLimit").max = o.plan.daily_cap;
+  $("tCap").textContent = o.plan.daily_cap; $("tReview").value = t.review;
+  $("sugBtn").disabled = !!access.locked;
+}
+$("tScore").oninput = () => $("tScoreVal").textContent = $("tScore").value;
+async function suggestInto() {
+  try { const s = await api("POST", "/portal/suggest-targets");
+        $("tTitles").value = s.titles.join(", "); $("tSkills").value = s.skills.join(", "); $("tKeywords").value = s.keywords.join(", ");
+        $("tPartKeywords").value = s.part_time_keywords.join(", "); $("tAvoid").value = s.avoid_titles.join(", ");
+        msg("targetMsg", "Suggestions filled in from your resume. Review them, then save.", "info"); }
+  catch (e) { msg("targetMsg", e.message, false); }
+}
+async function saveTargets() {
+  const job_types = {}; document.querySelectorAll("#tTypes [data-type]").forEach(c => job_types[c.dataset.type] = c.checked);
+  const body = {countries: list($("tCountries").value), relocate: $("tRelocate").checked, remote_only_countries: list($("tRemoteOnly").value), job_types,
+                titles: list($("tTitles").value), skills: list($("tSkills").value), keywords: list($("tKeywords").value),
+                part_time_keywords: list($("tPartKeywords").value), avoid_titles: list($("tAvoid").value),
+                min_score: +$("tScore").value, daily_limit: +$("tLimit").value, review: $("tReview").value};
+  try { const r = await api("PUT", "/portal/targets", body); loadTargets();
+        msg("targetMsg", `Saved. Daily limit ${r.targets.daily_limit}${r.targets.review !== body.review ? "; automatic sending needs a paid plan" : ""}.`); }
+  catch (e) { msg("targetMsg", e.message, false); }
+}
+/* AI studio */
+let aiResult = "";
+function loadStudio() { aiTaskChanged(); return Promise.resolve(); }
+function aiTaskChanged() {
+  const t = $("aiTask").value;
+  $("aiTextBox").classList.toggle("hidden", !["bullets", "cover_improve"].includes(t)); $("aiAskBox").classList.toggle("hidden", t !== "ask");
+  $("aiTextLabel").textContent = t === "bullets" ? "Paste the bullet points to improve (one per line)" : "Your cover letter";
+  if (t === "cover_improve" && !$("aiText").value) api("GET", "/portal/cover-letter").then(c => $("aiText").value = c.text || "");
+}
+async function aiRun() {
+  const task = $("aiTask").value;
+  $("aiBtn").disabled = true; $("aiOut").innerHTML = '<span class="muted">Working…</span>'; $("aiApply").innerHTML = ""; msg("aiMsg", "");
+  try {
+    const r = await api("POST", "/portal/ai", {task, text: $("aiText").value, request: $("aiAsk").value});
+    aiResult = r.answer; $("aiOut").textContent = r.answer; $("aiLeft").textContent = `${r.left_today} AI requests left today`;
+    if (r.off_topic) msg("aiMsg", r.answer, false);
+    else {
+      if (r.check_these?.length) msg("aiMsg", "Check these before using the text; they are not in your resume: " + r.check_these.join(", "), false);
+      const apply = {summary: ["Use as my summary", "summary"], headline: ["Use as my headline", "headline"], cover_write: ["Use as my cover letter", "cover"], cover_improve: ["Use as my cover letter", "cover"]}[task];
+      if (apply) $("aiApply").innerHTML = `<button class="btn sm primary" onclick="aiUse('${apply[1]}')">${apply[0]}</button>`;
+    }
+  } catch (e) { $("aiOut").textContent = ""; msg("aiMsg", e.message, false); }
+  $("aiBtn").disabled = false;
+}
+async function aiUse(where) {
+  try {
+    if (where === "cover") await api("PUT", "/portal/cover-letter", {text: aiResult});
+    else { const r = (await api("GET", "/portal/resume")).content; r[where] = aiResult.trim(); await api("PUT", "/portal/resume", {content: r}); }
+    msg("aiMsg", "Saved to your " + (where === "cover" ? "cover letter" : "resume " + where) + ".");
+  } catch (e) { msg("aiMsg", e.message, false); }
+}
+async function loadMailbox() {
+  const boxes = await api("GET", "/portal/mailbox");
+  $("boxList").innerHTML = boxes.length ? boxes.map(b => `<div class="check"><div class="dot done">✓</div><div style="flex:1">${esc(b.email)} <span class="muted">· ${esc(b.smtp)}</span></div></div>`).join("") : `<p class="muted">No mailbox connected yet.</p>`;
+  if (boxes[0]) { $("mEmail").value = boxes[0].email; $("mSmtp").value = boxes[0].smtp; }
+}
+async function saveMailbox() {
+  try { await api("PUT", "/portal/mailbox", {mailboxes: [{email: $("mEmail").value.trim(), app_password: $("mPass").value, smtp: $("mSmtp").value.trim()}]});
+        $("mPass").value = ""; msg("mailMsg", "Mailbox saved. Use Test sign-in to check that it works."); loadMailbox(); }
+  catch (e) { msg("mailMsg", e.message, false); }
+}
+async function testMailbox() {
+  msg("mailMsg", "Signing in to your mailbox…", "info");
+  try { const r = await api("POST", "/portal/mailbox/test");
+        msg("mailMsg", r.map(x => `${x.email}: ${x.ok ? "signed in OK" : friendlyMail(x.error)}`).join(" · "), r.every(x => x.ok)); }
+  catch (e) { msg("mailMsg", e.message, false); }
+}
+const friendlyMail = e => /getaddrinfo|11001|Name or service/i.test(e) ? "the mail server name could not be found; check the SMTP address"
+  : /535|Username and Password|BadCredentials|authentication/i.test(e) ? "the email or app password was not accepted" : /timed out|timeout/i.test(e) ? "the mail server did not answer; try again" : e;
+const HELP = {review: "Read each tailored email and the job, then approve or skip. Approved emails go out on the next run, within your daily limit.",
+              approved: "These go out on the next run. Skip any you no longer want.",
+              matched: "These passed the role check; the AI fit check and tailoring happen on the next run.",
+              found: "Every job the bot found for you. Pick any by hand and the next run prepares an application for it.",
+              skipped: "Jobs the bot set aside, with the reason: different role, different field, too senior, outside your places, and so on."};
+const FILTERS = [["country", "Country"], ["work_type", "Type of work"], ["field", "Field"], ["sector", "Sector"], ["source", "Source"], ["reason", "Reason set aside"]];
+const filterState = {queue: {}, apps: {}};
+function clearFilters() { filterState.queue = {}; }
+function filterBar(target, facets, which, reload) {
+  const state = filterState[which];
+  $(target).innerHTML = FILTERS.filter(([k]) => facets[k]?.length).map(([k, label]) => `<div><label>${label}</label><select data-f="${k}">
+      <option value="">All</option>${facets[k].filter(([v]) => v).map(([v, n]) => `<option value="${esc(v)}" ${state[k] === v ? "selected" : ""}>${esc(v)} (${n})</option>`).join("")}</select></div>`).join("")
+    + `<div><label>Posted</label><select data-f="days"><option value="">Any time</option>${[[1, "Last 24 hours"], [3, "Last 3 days"], [7, "Last week"], [14, "Last 2 weeks"], [30, "Last month"]]
+        .map(([d, l]) => `<option value="${d}" ${state.days == d ? "selected" : ""}>${l}</option>`).join("")}</select></div>`;
+  $(target).querySelectorAll("[data-f]").forEach(s => s.onchange = () => { state[s.dataset.f] = s.value; if (!s.value) delete state[s.dataset.f]; reload(); });
+}
+const params = (o) => Object.entries(o).filter(([, v]) => v).map(([k, v]) => `&${k}=${encodeURIComponent(v)}`).join("");
+const tags = j => `<span class="pill">${esc(j.source_name)}</span> <span class="pill">${esc(j.work_type)}</span> <span class="pill">${esc(j.sector)}</span> <span class="pill">${esc(j.country)}</span>${j.field && j.field !== "Other" ? ` <span class="pill">${esc(j.field)}</span>` : ""}`;
+async function loadQueue() {
+  const stage = $("qStage").value;
+  $("qHelp").textContent = HELP[stage];
+  const r = await api("GET", `/portal/queue?stage=${stage}&q=${encodeURIComponent($("qSearch").value || "")}${params(filterState.queue)}`);
+  filterBar("qFilters", r.facets, "queue", loadQueue);
+  $("qCount").textContent = `${r.total} job${r.total === 1 ? "" : "s"}${r.total > r.shown ? `, showing the newest ${r.shown}` : ""}`;
+  const can = !access.locked;
+  $("queueList").innerHTML = r.jobs.length ? r.jobs.map(j => `<div class="job" id="job${j.id}"><div class="row between"><div><b>${esc(j.title)}</b>
+    <div class="small muted">${esc(j.company)} · ${esc(j.location || "")} · match ${j.score}${j.emails[0] ? " · to " + esc(j.emails[0]) : ""} · posted ${esc(j.posted_at || (j.found_at || "").slice(0, 10))}</div>
+    <div style="margin-top:6px">${tags(j)}</div>${j.reason ? `<div class="small" style="margin-top:6px;color:var(--warn)">Set aside: ${esc(j.reason)}</div>` : ""}</div>
+    <div class="row">${!can ? "" : stage === "review" ? `<button class="btn primary sm" onclick="decide(${j.id},'approve')">Approve</button>` : ""}
+      ${can && (stage === "found" || stage === "skipped") ? `<button class="btn primary sm" onclick="decide(${j.id},'pick')">Apply to this</button>` : ""}
+      ${can && stage !== "found" && stage !== "skipped" ? `<button class="btn danger sm" onclick="decide(${j.id},'reject')">Skip</button>` : ""}</div></div>
+    ${j.email_body ? `<details><summary>Read the tailored email</summary><pre>${esc(j.email_subject ? "Subject: " + j.email_subject + "\n\n" : "")}${esc(j.email_body)}</pre></details>` : ""}
+    <details ontoggle="if(this.open)jobDetail(${j.id}, this)"><summary>Read the job</summary><pre>Loading…</pre></details>
+    ${can && ["review", "approved", "matched"].includes(stage) ? `<details ontoggle="if(this.open)editTailored(${j.id}, this)"><summary>Edit resume and email for this job</summary><div class="small muted">Loading…</div></details>` : ""}
+    ${j.url ? `<a class="small" href="${esc(j.url)}" target="_blank" rel="noopener">Open the job post</a>` : ""}</div>`).join("") : `<div class="card muted">Nothing here right now.</div>`;
+}
+async function editTailored(id, box) {
+  const area = box.querySelector("div");
+  try {
+    const t = (await api("GET", "/portal/jobs/" + id)).tailored;
+    area.className = "";
+    area.innerHTML = `<p class="small muted">${t.ready ? `Tailored ${t.by === "manual" ? "by you" : t.by === "ai" ? "by the AI writer" : "from the template"}.` : "Not tailored yet: write it yourself here, or wait for the next run."}
+        Change anything, but only claim what is true: lines that do not appear in your resume are flagged.</p>
+      <label>Headline</label><input data-t="headline" value="${esc(t.headline)}">
+      <label>Summary</label><textarea data-t="summary">${esc(t.summary)}</textarea>
+      <label>Skills (one group per line, as "Group: skill, skill")</label><textarea data-t="skills">${esc(t.skills.map(g => g.label + ": " + g.items.join(", ")).join("\n"))}</textarea>
+      ${t.experience.map((e, i) => `<label>${esc(e.title)} · ${esc(e.company)} (one point per line)</label><textarea data-exp="${i}">${esc(e.bullets.join("\n"))}</textarea>`).join("")}
+      <label>Email subject</label><input data-t="email_subject" value="${esc(t.email_subject)}">
+      <label>Email</label><textarea data-t="email_body" style="min-height:180px">${esc(t.email_body)}</textarea>
+      <div class="row" style="margin-top:10px"><button class="btn primary" onclick="saveTailored(${id}, this)">Save for this job</button>
+        <button class="btn" onclick="retailor(${id}, this)">Let the bot tailor it again</button></div><div class="tmsg"></div>`;
+  } catch (e) { area.textContent = e.message; }
+}
+async function saveTailored(id, btn) {
+  const box = btn.closest("details"), get = k => box.querySelector(`[data-t="${k}"]`).value;
+  const body = {headline: get("headline"), summary: get("summary"), email_subject: get("email_subject"), email_body: get("email_body"),
+    skills: get("skills").split("\n").map(l => l.split(":")).filter(p => p.length > 1).map(([label, ...rest]) => ({label: label.trim(), items: rest.join(":").split(",").map(s => s.trim()).filter(Boolean)})),
+    experience: [...box.querySelectorAll("[data-exp]")].map(t => ({bullets: t.value.split("\n").map(s => s.trim()).filter(Boolean)}))};
+  const out = box.querySelector(".tmsg");
+  try { const r = await api("PUT", `/portal/jobs/${id}/tailored`, body);
+        out.innerHTML = r.warnings.length ? `<div class="msg bad">Saved, but check these, they are not in your resume: ${esc(r.warnings.join(", "))}</div>` : `<div class="msg ok">Saved. Approve it when you are happy.</div>`; }
+  catch (e) { out.innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; }
+}
+async function retailor(id, btn) {
+  const out = btn.closest("details").querySelector(".tmsg");
+  try { await api("POST", `/portal/jobs/${id}/retailor`); out.innerHTML = `<div class="msg ok">Done: the next run writes a fresh version from the job description.</div>`; }
+  catch (e) { out.innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; }
+}
+async function jobDetail(id, box) {
+  try { const j = await api("GET", "/portal/jobs/" + id);
+        box.querySelector("pre").textContent = [j.salary ? "Salary: " + j.salary : "", j.deadline ? "Apply by: " + j.deadline : "", j.score_notes ? "Why it matched: " + j.score_notes : "",
+                                                 j.description || "No description in the source."].filter(Boolean).join("\n\n"); }
+  catch (e) { box.querySelector("pre").textContent = e.message; }
+}
+async function decide(id, action) {
+  try { await api("POST", `/portal/queue/${id}/${action}`); $("job" + id)?.remove(); } catch (e) { alert(e.message); }
+}
+async function loadApps() {
+  const r = await api("GET", `/portal/queue?stage=sent&limit=500${params(filterState.apps)}`);
+  filterBar("aFilters", r.facets, "apps", loadApps);
+  $("aCount").textContent = `${r.total} application${r.total === 1 ? "" : "s"} sent${r.total > r.shown ? `, showing the newest ${r.shown}` : ""}`;
+  $("appRows").innerHTML = r.jobs.length ? r.jobs.map(r => `<tr style="cursor:pointer" onclick="sentDetail(${r.id}, this)"><td>${esc((r.sent_at || "").slice(0, 10))}</td><td><b>${esc(r.title)}</b></td>
+    <td>${esc(r.company)}</td><td>${esc(r.country)}</td><td>${esc(r.work_type)} · ${esc(r.sector)}</td><td>${esc(r.source_name)}<div class="small muted">posted ${esc(r.posted_at || "")}</div></td>
+    <td>${esc(r.to_email || "")}</td><td>${r.outcome ? `<span class="pill ${r.outcome === "replied" ? "ok" : "bad"}">${esc(r.outcome)}</span>` : `<span class="pill">sent</span>`}</td></tr>`).join("")
+    : `<tr><td colspan="8" class="muted">No applications yet.</td></tr>`;
+}
+async function sentDetail(id, row) {
+  const next = row.nextElementSibling;
+  if (next?.classList.contains("detail")) return next.remove();
+  const j = await api("GET", "/portal/jobs/" + id);
+  const tr = document.createElement("tr"); tr.className = "detail";
+  tr.innerHTML = `<td colspan="8"><div class="small muted">Sent ${esc((j.sent_at || "").replace("T", " ").slice(0, 16))} to ${esc(j.to_email || "")}${j.followup_at ? " · follow-up sent " + esc(j.followup_at.slice(0, 10)) : ""}${j.outcome ? " · " + esc(j.outcome) + " " + esc((j.outcome_at || "").slice(0, 10)) : ""}</div>
+    <pre>${esc(j.email_subject ? "Subject: " + j.email_subject + "\n\n" : "")}${esc(j.email_body || "")}</pre>
+    <details><summary>The job</summary><pre>${esc(j.description || "")}</pre></details>${j.url ? `<a class="small" href="${esc(j.url)}" target="_blank" rel="noopener">Open the job post</a>` : ""}</td>`;
+  row.after(tr);
+}
+let bill = null;
+async function loadAccount() {
+  bill = await api("GET", "/portal/billing");
+  const paid = access.paid;
+  $("accountCard").innerHTML = `<div class="row between"><div><h3>${esc(paid ? bill.plan.title + " plan" : "Free profile")}</h3>
+    <p class="small">${paid ? `Up to ${bill.plan.daily_cap} applications a day · ${bill.plan.mailboxes} mailbox(es)` : "Your profile is saved. Choose a plan below to start applying."}</p>
+    <p class="small muted">${bill.paid_until ? (paid ? "Paid until " : "Ended ") + esc(bill.paid_until.slice(0, 10)) : ""}</p></div>
+    ${paid ? `<span class="pill ok">active</span>` : `<span class="pill warn">not active</span>`}</div>`;
+  const paidPlans = bill.plans.filter(p => p.price_month > 0), best = paidPlans[1]?.name;
+  $("buyPlans").innerHTML = paidPlans.map(p => `<div class="card plan ${p.name === best ? "best" : ""}">${p.name === best ? '<span class="tag">Most popular</span>' : ""}<h3>${esc(p.title)}</h3>
+      <div class="price">${money(p)}<span class="small muted" style="font-weight:500"> / month</span></div>
+      <ul>${planPoints(p).map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+      <button class="btn ${p.name === bill.plan.name && paid ? "" : "primary"}" onclick="buy('${esc(p.name)}')">${p.name === bill.plan.name && paid ? "Renew 30 days" : "Choose " + esc(p.title)}</button></div>`).join("")
+    || `<p class="muted">No paid plans in your country yet.</p>`;
+  $("payRows").innerHTML = bill.payments.length ? bill.payments.map(p => `<tr><td>${esc((p.created_at || "").slice(0, 10))}</td><td>${esc(p.plan)}</td>
+      <td>${money({price_month: p.amount, currency: p.currency})}</td><td>${esc(p.gateway)}</td>
+      <td><span class="pill ${p.status === "paid" ? "ok" : p.status === "failed" ? "bad" : "warn"}">${esc(p.status)}</span></td><td class="small">${esc(p.reference || "")}</td><td>${esc((p.period_end || "").slice(0, 10))}</td></tr>`).join("")
+    : `<tr><td colspan="7" class="muted">No payments yet.</td></tr>`;
+}
+async function buy(plan) {
+  if (!bill.gateways.length) return msg("billMsg", "No payment method is available in your country yet.", false);
+  try {
+    const r = await api("POST", "/portal/checkout", {plan, gateway: bill.gateways[0].code});
+    const p = r.payment;
+    $("payBox").classList.remove("hidden");
+    $("payBox").innerHTML = `<h3>Checkout · ${esc(plan)}</h3><p>Amount: <b>${money({price_month: p.amount, currency: p.currency})}</b> for 30 days · ${esc(r.gateway.name)}</p>
+      ${r.next.mode === "test" ? `<p class="msg bad">${esc(r.next.message)}</p><div class="row"><button class="btn primary" id="payOk" onclick="finishPay(${p.id}, 'success')">Pay (test)</button>
+        <button class="btn" id="payFail" onclick="finishPay(${p.id}, 'fail')">Simulate a failed payment</button></div>` : `<p class="muted">Continue with ${esc(r.gateway.name)}.</p>`}`;
+    $("payBox").scrollIntoView({behavior: "smooth"});
+  } catch (e) { msg("billMsg", e.message, false); }
+}
+async function finishPay(id, result) {
+  try { const r = await api("POST", `/portal/payments/${id}/confirm`, {result});
+        $("payBox").classList.add("hidden");
+        msg("billMsg", r.status === "paid" ? `Payment received (${r.reference}). Your plan is active until ${r.period_end.slice(0, 10)}. You can now edit your profile, connect your mailbox and switch the bot on.` : "The payment did not go through. Nothing was charged.", r.status === "paid");
+        overviewData = null; await refreshAccess(); loadAccount(); }
+  catch (e) { msg("billMsg", e.message, false); }
+}
+async function loadHelp() {
+  $("stars").innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="btn sm" data-star="${n}" onclick="rate(${n})">${"★".repeat(n)}</button>`).join("");
+  const rows = await api("GET", "/portal/tickets");
+  $("ticketList").innerHTML = rows.length ? rows.map(t => `<div class="job"><div class="row between"><div><b>${esc(t.subject)}</b>
+      <div class="small muted">${esc(t.kind)}${t.category && t.kind === "support" ? " · " + esc(t.category) : ""}${t.rating ? " · " + "★".repeat(t.rating) : ""} · ${esc((t.created_at || "").slice(0, 10))}</div></div>
+      <span class="pill ${t.status === "answered" ? "ok" : t.status === "closed" ? "" : "warn"}">${esc(t.status)}</span></div>
+      <pre>${esc(t.message)}</pre>${t.reply ? `<div class="msg ok"><b>Our reply</b> (${esc((t.replied_at || "").slice(0, 10))}): ${esc(t.reply)}</div>` : ""}</div>`).join("")
+    : `<div class="card muted">You have not sent us anything yet.</div>`;
+}
+function rate(n) { $("ratingVal").value = n; document.querySelectorAll("[data-star]").forEach(b => b.classList.toggle("primary", +b.dataset.star === n)); }
+async function sendTicket(ev, kind) {
+  ev.preventDefault();
+  const f = Object.fromEntries(new FormData(ev.target)), out = kind === "support" ? "supMsg" : "fbMsg";
+  if (kind === "feedback") { f.rating = +f.rating; if (!f.rating) return msg(out, "Choose a rating first.", false); }
+  try { await api("POST", "/portal/tickets", {...f, kind}); ev.target.reset(); if (kind === "feedback") rate(0); msg(out, kind === "support" ? "Sent. Our reply will appear below." : "Thank you for your feedback."); loadHelp(); }
+  catch (e) { msg(out, e.message, false); }
+}
+
+loadPlans();
+if (token) start();
+</script>
+</body>
+</html>

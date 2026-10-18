@@ -1,0 +1,21 @@
+# Secrets and personal data never go into git.
+.env
+**/.env
+*.db
+*.db-shm
+*.db-wal
+*.merged
+*.lock
+LOGINS.local.txt
+accounts/
+output/
+reports/
+logs/
+backup/
+profile/
+send_*
+TEST-REPORT.md
+tests/.data/
+**/__pycache__/
+*.pyc
+.venv/

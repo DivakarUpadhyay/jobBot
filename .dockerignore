@@ -1,0 +1,18 @@
+# Nothing personal and nothing that changes while running goes into the image.
+# Data lives on the /data volume instead (see deploy/README.md).
+.env
+*.db
+*.db-shm
+*.db-wal
+*.lock
+accounts/
+output/
+reports/
+logs/
+profile/
+tests/
+TEST-REPORT.md
+**/__pycache__/
+*.bat
+LOGINS.local.txt
+backup/

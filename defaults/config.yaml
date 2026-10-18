@@ -1,0 +1,45 @@
+# What a NEW account starts with, where that differs from the master list (config.yaml one folder up).
+# Only the differences are listed here; every other setting starts with the master list's value.
+# Nothing in this file may name a person, a mailbox or one person's skills.
+
+regions: [Remote]
+remote_only_countries: {}
+open_to_relocation: false
+apply_to_every_job_with_email: false   # only jobs that match the customer's profile
+
+match:
+  strict: true                          # the job title must be one of the customer's target roles
+  ai_check: true                        # the AI confirms the fit before any resume or email is written
+
+priority_countries:
+  bonus: 0                              # no favoured country: the customer's own regions decide
+
+taiwan:
+  non_technical_part_time_only: false
+  chinese_posts_with_email: false
+
+search:
+  keywords: ["software engineer", "backend engineer", "full stack engineer", "web developer"]
+  part_time_keywords: ["part time developer", "freelance developer", "contract developer"]
+
+profile:
+  titles: ["software engineer", "developer", "programmer"]
+  titles_secondary: []
+  skills_primary: []
+  skills_secondary: []
+
+ai:
+  require_ai_for_sending: true          # nothing goes out as a bare template
+
+sending:
+  send_from: []                         # the customer's own mailbox, once connected
+  cc: {}
+  review: manual                        # the customer approves every email until they choose otherwise
+  warmup_caps: [10, 20, 30]
+  daily_ceiling: 30
+
+sources:
+  fetch: false                          # customers judge the shared pool; only the owner's account reads the sites
+  auto_approve: false
+  countries_per_cycle: 0                # new accounts use the shared source list; no web discovery of their own
+  cities: {}

@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job Bot Admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d4ed8'/%3E%3Ctext x='16' y='22' font-size='18' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3EJ%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#f3f5f8; --surface:#ffffff; --surface-2:#f8fafc; --ink:#101828; --ink-2:#475467; --mute:#667085; --line:#e4e7ec;
+    --brand:#1d4ed8; --brand-soft:#e8efff; --ok:#067647; --ok-soft:#e6f6ee; --warn:#b54708; --warn-soft:#fef4e6;
+    --bad:#b42318; --bad-soft:#fdecea; --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08); --radius:12px;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#0c111a; --surface:#141b26; --surface-2:#1a2331; --ink:#eef2f7; --ink-2:#c3cad6; --mute:#94a0b4; --line:#273244;
+    --brand:#7aa7ff; --brand-soft:#1b2a4a; --ok:#4fd39a; --ok-soft:#113327; --warn:#f5b45c; --warn-soft:#3a2a12;
+    --bad:#ff8a80; --bad-soft:#3c1a17; --shadow:0 1px 2px rgba(0,0,0,.4); } }
+  :root[data-theme="dark"] {
+    --bg:#0c111a; --surface:#141b26; --surface-2:#1a2331; --ink:#eef2f7; --ink-2:#c3cad6; --mute:#94a0b4; --line:#273244;
+    --brand:#7aa7ff; --brand-soft:#1b2a4a; --ok:#4fd39a; --ok-soft:#113327; --warn:#f5b45c; --warn-soft:#3a2a12;
+    --bad:#ff8a80; --bad-soft:#3c1a17; --shadow:0 1px 2px rgba(0,0,0,.4); }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
+  a { color:var(--brand); text-decoration:none; } a:hover { text-decoration:underline; }
+  button, input, select { font:inherit; color:inherit; }
+
+  /* top bar */
+  .top { position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--line); }
+  .top-in { max-width:1320px; margin:0 auto; padding:10px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:650; font-size:16px; letter-spacing:.2px; margin-right:auto; }
+  .logo { width:30px; height:30px; border-radius:8px; background:var(--brand); display:grid; place-items:center; color:#fff; font-weight:700; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; white-space:nowrap; }
+  .pill i { width:7px; height:7px; border-radius:50%; background:currentColor; display:inline-block; }
+  .pill.ok { color:var(--ok); background:var(--ok-soft); } .pill.warn { color:var(--warn); background:var(--warn-soft); }
+  .pill.bad { color:var(--bad); background:var(--bad-soft); } .pill.info { color:var(--brand); background:var(--brand-soft); }
+  .pill.mute { color:var(--mute); background:var(--surface-2); border:1px solid var(--line); }
+  .btn { border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:6px 12px; cursor:pointer; font-weight:550; }
+  .btn:hover { background:var(--surface-2); } .btn:focus-visible, .tab:focus-visible, input:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+  .btn.primary { background:var(--brand); border-color:var(--brand); color:#fff; } .btn.primary:hover { filter:brightness(1.07); }
+  .btn.sm { padding:4px 9px; font-size:12.5px; } .btn.good { color:var(--ok); border-color:var(--ok); } .btn.danger { color:var(--bad); border-color:var(--bad); }
+  .btn[disabled] { opacity:.5; cursor:default; }
+
+  /* tabs */
+  .tabs { max-width:1320px; margin:0 auto; padding:0 8px; display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tab { border:0; background:none; padding:10px 12px; cursor:pointer; color:var(--mute); font-weight:600; border-bottom:2px solid transparent; white-space:nowrap; }
+  .tab:hover { color:var(--ink); } .tab.on { color:var(--brand); border-bottom-color:var(--brand); }
+  .tab .count { margin-left:6px; font-size:11.5px; padding:1px 7px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--ink-2); }
+
+  main { max-width:1320px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+  section.view { display:none; gap:16px; } section.view.on { display:grid; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); min-width:0; }
+  .card-h { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .card-h h2 { margin:0; font-size:15px; font-weight:650; } .card-h p { margin:0; color:var(--mute); font-size:12.5px; flex-basis:100%; }
+  .card-h .grow { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .card-b { padding:16px; }
+  .grid { display:grid; gap:16px; } .g2 { grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); }
+
+  /* KPI tiles */
+  .kpis { display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
+  .kpi { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); }
+  .kpi .v { font-size:28px; font-weight:700; line-height:1.15; font-variant-numeric:tabular-nums; }
+  .kpi .l { color:var(--mute); font-size:12.5px; margin-top:2px; } .kpi .s { font-size:12px; color:var(--ink-2); margin-top:6px; }
+  .kpi.accent .v { color:var(--brand); } .kpi.good .v { color:var(--ok); } .kpi.alert .v { color:var(--bad); }
+
+  /* accounts */
+  .acct { display:grid; gap:6px; padding:12px 0; border-bottom:1px solid var(--line); } .acct:last-child { border-bottom:0; }
+  .acct-top { display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; } .acct-top b { word-break:break-all; }
+  .bar { height:8px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); overflow:hidden; }
+  .bar > span { display:block; height:100%; background:var(--brand); border-radius:999px; }
+  .small { font-size:12.5px; color:var(--mute); }
+
+  /* chart */
+  .chart { display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:18px; }
+  .chart .col { flex:1; min-width:14px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%; }
+  .chart .b { width:100%; max-width:38px; background:var(--brand); border-radius:6px 6px 2px 2px; min-height:2px; }
+  .chart .n { font-size:11.5px; font-weight:650; font-variant-numeric:tabular-nums; } .chart .d { font-size:11px; color:var(--mute); white-space:nowrap; }
+  .rows { display:grid; gap:8px; } .rowbar { display:grid; grid-template-columns:minmax(90px, 34%) 1fr 36px; gap:8px; align-items:center; font-size:13px; }
+  .rowbar .t { height:8px; border-radius:999px; background:var(--surface-2); overflow:hidden; } .rowbar .t span { display:block; height:100%; background:var(--brand); border-radius:999px; }
+  .rowbar .c { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .rowbar > span:first-child { overflow-wrap:anywhere; line-height:1.3; }
+
+  /* tables */
+  .tw { overflow-x:auto; } table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--mute); font-weight:650; background:var(--surface-2); position:sticky; top:0; white-space:nowrap; }
+  tbody tr:hover { background:var(--surface-2); } tr:last-child td { border-bottom:0; }
+  td .t1 { font-weight:600; } td .t2 { color:var(--mute); font-size:12.5px; } .nowrap { white-space:nowrap; } .num { font-variant-numeric:tabular-nums; }
+  .empty { padding:28px 16px; text-align:center; color:var(--mute); }
+  .field { border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:6px 10px; min-width:0; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .switch { position:relative; width:42px; height:24px; border-radius:999px; border:1px solid var(--line); background:var(--surface-2); cursor:pointer; flex:none; padding:0; }
+  .switch::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--mute); transition:transform .15s; }
+  .switch.on { background:var(--ok); border-color:var(--ok); } .switch.on::after { transform:translateX(18px); background:#fff; }
+
+  /* drawer */
+  .scrim { position:fixed; inset:0; background:rgba(8,12,20,.5); z-index:40; display:none; } .scrim.on { display:block; }
+  .drawer { position:fixed; top:0; right:0; bottom:0; width:min(720px, 100%); background:var(--surface); z-index:41; transform:translateX(100%);
+            transition:transform .2s; display:flex; flex-direction:column; border-left:1px solid var(--line); }
+  .drawer.on { transform:none; }
+  .drawer-h { padding:14px 16px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:flex-start; }
+  .drawer-h h3 { margin:0; font-size:16px; flex:1; } .drawer-b { padding:16px; overflow:auto; display:grid; gap:16px; }
+  .block h4 { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--mute); }
+  .block pre { margin:0; white-space:pre-wrap; word-break:break-word; font-family:inherit; font-size:13.5px; line-height:1.55; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .kv { display:grid; grid-template-columns:120px 1fr; gap:4px 12px; font-size:13.5px; } .kv span:nth-child(odd) { color:var(--mute); } .kv span { word-break:break-word; }
+  #toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:9px 16px; border-radius:10px;
+           font-weight:600; opacity:0; pointer-events:none; transition:opacity .2s; z-index:60; max-width:90vw; }
+  #toast.on { opacity:1; }
+
+  /* phones: tables become stacked cards */
+  .gate { position:fixed; inset:0; z-index:60; background:var(--bg); display:grid; place-items:center; padding:16px; }
+  .gate[hidden] { display:none; }
+  .gate form { width:100%; max-width:360px; display:grid; gap:10px; padding:22px; }
+  .gate h2 { margin:0; font-size:18px; } .gate .field { width:100%; } .gate .err { color:var(--bad); min-height:1.2em; margin:0; }
+  .days { display:flex; gap:4px; flex-wrap:wrap; } .days label { display:flex; align-items:center; gap:3px; font-size:12.5px; }
+  @media (max-width:760px) {
+    main { padding:12px; gap:12px; } .card-b { padding:12px; } .kpi .v { font-size:24px; }
+    table.stack thead { display:none; } table.stack, table.stack tbody, table.stack tr, table.stack td { display:block; width:100%; }
+    table.stack tr { padding:10px 12px; border-bottom:1px solid var(--line); } table.stack td { border:0; padding:3px 0; }
+    table.stack td[data-l]::before { content:attr(data-l); display:block; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--mute); }
+    table.stack td.act { padding-top:8px; } .kv { grid-template-columns:1fr; } .kv span:nth-child(odd) { margin-top:6px; }
+    .brand span.full { display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="gate" id="gate" hidden>
+  <form class="card" id="gateForm">
+    <div class="brand"><div class="logo">J</div><span>Job Bot Admin</span></div>
+    <h2 id="gateTitle">Sign in</h2>
+    <p class="small" id="gateNote"></p>
+    <input class="field" id="gateName" placeholder="Your name" autocomplete="name" hidden>
+    <input class="field" id="gateEmail" type="email" placeholder="Email" autocomplete="username" required>
+    <input class="field" id="gatePass" type="password" placeholder="Password" autocomplete="current-password" required>
+    <button class="btn primary" type="submit" id="gateBtn">Sign in</button>
+    <p class="small err" id="gateErr" role="alert"></p>
+  </form>
+</div>
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><div class="logo">J</div><span>Job Bot <span class="full">Admin</span></span></div>
+    <span class="pill mute" id="loopPill"><i></i>checking</span>
+    <span class="small" id="updated"></span>
+    <span class="small" id="whoami"></span>
+    <button class="btn sm" id="themeBtn" title="Switch light / dark">Theme</button>
+    <button class="btn sm" id="outBtn">Sign out</button>
+    <button class="btn sm primary" id="refreshBtn">Refresh</button>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+</header>
+
+<main>
+  <section class="view" id="v-overview">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid g2">
+      <div class="card"><div class="card-h"><h2>Applications sent per day</h2></div><div class="card-b"><div class="chart" id="chartDay"></div></div></div>
+      <div class="card"><div class="card-h"><h2>Sender accounts today</h2><p>Each account has its own daily limit.</p></div><div class="card-b" id="accounts"></div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><div class="card-h"><h2>Sent by kind</h2></div><div class="card-b"><div class="rows" id="byKind"></div></div></div>
+      <div class="card"><div class="card-h"><h2>Sent by field</h2></div><div class="card-b"><div class="rows" id="byField"></div></div></div>
+      <div class="card"><div class="card-h"><h2>Sent by source</h2></div><div class="card-b"><div class="rows" id="bySource"></div></div></div>
+      <div class="card"><div class="card-h"><h2>What came back</h2></div><div class="card-b"><div class="rows" id="outcomes"></div></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-review">
+    <div class="card">
+      <div class="card-h"><h2>Waiting for your approval</h2>
+        <div class="grow toolbar">
+          <select class="field" id="reviewKind"><option value="jobs">Job applications</option><option value="leads">Leads and tenders</option></select>
+          <input class="field" id="reviewSearch" placeholder="Search company or role" size="22">
+        </div>
+        <p>Approved emails go out on the next run, inside the daily limits. Nothing here is sent without your approval.</p>
+      </div>
+      <div class="tw"><table class="stack" id="reviewTable"></table></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-sent">
+    <div class="card">
+      <div class="card-h"><h2>Applications sent</h2>
+        <div class="grow toolbar"><input class="field" id="sentSearch" placeholder="Search company, role or address" size="26">
+          <select class="field" id="sentStatus"><option value="">Any status</option><option>Reply received</option><option>Delivered</option><option>Sent</option><option>Bounced</option></select></div>
+      </div>
+      <div class="tw"><table class="stack" id="sentTable"></table></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-jobs">
+    <div class="card">
+      <div class="card-h"><h2>Jobs found</h2>
+        <div class="grow toolbar">
+          <input class="field" id="jobSearch" placeholder="Search title or company" size="22">
+          <select class="field" id="jobType"><option value="">Any type</option><option value="full">Full-time</option><option value="part">Part-time</option><option value="freelance">Freelance</option></select>
+          <label class="small"><input type="checkbox" id="jobEmail" checked> with HR email</label>
+        </div>
+        <p>Jobs from the last 14 days that passed the filter, newest first.</p>
+      </div>
+      <div class="tw"><table class="stack" id="jobTable"></table></div>
+      <div class="card-b toolbar"><button class="btn sm" id="jobPrev">Previous</button><span class="small" id="jobPage"></span><button class="btn sm" id="jobNext">Next</button></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-sources">
+    <div class="card">
+      <div class="card-h"><h2>Job sources</h2>
+        <div class="grow toolbar"><input class="field" id="srcSearch" placeholder="Search source or country" size="22">
+          <select class="field" id="srcState"><option value="">All</option><option value="on">Switched on</option><option value="off">Switched off</option></select></div>
+        <p>A source that is switched off is skipped from the next run on.</p>
+      </div>
+      <div class="tw"><table class="stack" id="srcTable"></table></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-process">
+    <div class="card">
+      <div class="card-h"><h2>Steps of each run</h2><p>Switch a step off and the bot skips it from the next iteration. "bot" is the master switch.</p></div>
+      <div class="tw"><table class="stack" id="procTable"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Recent activity</h2></div>
+      <div class="tw"><table class="stack" id="logTable"></table></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-schedule">
+    <div class="card">
+      <div class="card-h"><h2>When the bot runs</h2>
+        <p id="schNote">Times are in your account's time zone. A run does the whole process once: find jobs, write, send, record.</p></div>
+      <div class="card-b">
+        <div class="toolbar">
+          <select class="field" id="schKind"><option value="daily">Every day at</option><option value="interval">Every</option></select>
+          <input class="field" id="schAt" type="time" value="08:30">
+          <span class="days" id="schDays"></span>
+          <input class="field" id="schEvery" type="number" min="15" step="5" value="120" style="width:90px" hidden>
+          <span class="small" id="schEveryL" hidden>minutes</span>
+          <button class="btn primary" id="schAdd">Add schedule</button>
+        </div>
+      </div>
+      <div class="tw"><table class="stack" id="schTable"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Runs</h2><div class="grow toolbar"><button class="btn primary" id="runNow">Run now</button></div>
+        <p id="runNote"></p></div>
+      <div class="tw"><table class="stack" id="runTable"></table></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-settings">
+    <div class="card">
+      <div class="card-h"><h2>Settings</h2><p>Changes are saved in the database and take effect on the next run. "Reset" goes back to the default. Passwords and keys are never shown here.</p></div>
+      <div class="tw"><table class="stack" id="setTable"></table></div>
+    </div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-h"><h3 id="dTitle"></h3><button class="btn sm" id="dClose">Close</button></div>
+  <div class="drawer-b" id="dBody"></div>
+</aside>
+<div id="toast" role="status"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const token = { get: () => { try { return localStorage.getItem("jb-token"); } catch { return null; } },
+  set: v => { try { v ? localStorage.setItem("jb-token", v) : localStorage.removeItem("jb-token"); } catch {} } };
+class SignedOut extends Error {}
+const api = async (path, method = "GET", body) => {
+  const headers = body ? { "Content-Type": "application/json" } : {};
+  if (token.get()) headers.Authorization = "Bearer " + token.get();
+  const r = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401 && path !== "/login") { token.set(null); gate(); throw new SignedOut(); }
+  return r.json();
+};
+/* a time from the service (UTC), shown in the account's own time zone, whatever zone this device is in */
+const utc = s => s ? new Date(s).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: state.me ? state.me.account.timezone : undefined }) : "";
+const when = s => s ? String(s).replace("T", " ").slice(0, 16) : "";
+const toast = msg => { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("on"), 2600); };
+const TABS = [["overview", "Overview"], ["review", "Review"], ["sent", "Sent"], ["jobs", "Jobs"], ["schedule", "Schedule"], ["sources", "Sources"], ["process", "Processes"], ["settings", "Settings"]];
+const state = { tab: "overview", jobOffset: 0, data: {} };
+
+/* ---------- shell ---------- */
+function drawTabs(counts = {}) {
+  $("tabs").innerHTML = TABS.map(([id, label]) => `<button class="tab ${state.tab === id ? "on" : ""}" role="tab" data-tab="${id}">${label}${counts[id] != null ? `<span class="count">${counts[id]}</span>` : ""}</button>`).join("");
+  TABS.forEach(([id]) => $("v-" + id).classList.toggle("on", id === state.tab));
+}
+$("tabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (!b) return; state.tab = b.dataset.tab; try { localStorage.setItem("jb-tab", state.tab); } catch {} drawTabs(state.counts); load(); });
+$("refreshBtn").onclick = () => load(true);
+$("themeBtn").onclick = () => { const r = document.documentElement, dark = getComputedStyle(r).getPropertyValue("--bg").trim() === "#0c111a"; r.dataset.theme = dark ? "light" : "dark"; try { localStorage.setItem("jb-theme", r.dataset.theme); } catch {} };
+try { const t = localStorage.getItem("jb-theme"); if (t) document.documentElement.dataset.theme = t; state.tab = localStorage.getItem("jb-tab") || "overview"; } catch {}
+
+/* ---------- pieces ---------- */
+const kpi = (v, label, cls = "", sub = "") => `<div class="kpi ${cls}"><div class="v">${esc(v)}</div><div class="l">${label}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>`;
+const bars = (el, items, total) => { const max = Math.max(1, ...items.map(i => i.n)); $(el).innerHTML = items.length ? items.map(i => `<div class="rowbar"><span>${esc(i.k || "—")}</span><div class="t"><span style="width:${Math.round(100 * i.n / max)}%"></span></div><span class="c">${i.n}</span></div>`).join("") : `<div class="small">Nothing yet.</div>`; };
+const KIND = { full: "Full-time", part: "Part-time", freelance: "Freelance", lead: "Lead (tender)", subcontract: "Subcontracting", collaboration: "Collaboration" };
+function statusPill(text) {
+  const t = String(text || "");
+  const cls = /reply/i.test(t) ? "ok" : /^bounced|email bounced|fail|interrupted/i.test(t) ? "bad" : /delivered/i.test(t) ? "ok"
+    : /sent/i.test(t) ? "info" : /waiting|review|approved|running/i.test(t) ? "warn" : "mute";
+  return `<span class="pill ${cls}">${esc(t)}</span>`;
+}
+
+async function shell() {
+  const st = await api("/status"); state.data.status = st;
+  if (!state.me) { state.me = await api("/me"); $("whoami").textContent = state.me.user.email; }
+  const p = $("loopPill");
+  p.className = "pill " + (st.loop_running ? "ok" : "bad");
+  p.innerHTML = `<i></i>${st.loop_running ? (st.current_step ? "Running: " + esc(st.current_step) : "Running") : "Bot is not running"}`;
+  $("updated").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  state.counts = { review: st.waiting_for_review, sent: st.sent_total, sources: st.sources_active };
+  drawTabs(state.counts);
+  return st;
+}
+
+/* ---------- views ---------- */
+async function vOverview(st) {
+  const s = await api("/stats");
+  const cap = st.accounts.reduce((a, x) => a + x.cap, 0), used = st.accounts.reduce((a, x) => a + x.sent_today, 0);
+  $("kpis").innerHTML = [
+    kpi(st.sent_today, "sent today", "accent", `${used} of ${cap} daily limit used`),
+    kpi(st.sent_total, "sent in total"),
+    kpi(st.replies, "replies", st.replies ? "good" : "", `${st.auto_acknowledgements} automatic acknowledgements`),
+    kpi(st.bounced, "bounced", st.bounced ? "alert" : ""),
+    kpi(st.jobs_waiting, "applications waiting for you"),
+    kpi(st.leads_waiting, "leads waiting for you"),
+    kpi(st.jobs_found_today, "jobs found today", "", `${st.jobs_with_email} jobs have an HR email`),
+    kpi(`${st.sources_active}/${st.sources_total}`, "sources switched on"),
+  ].join("");
+  const max = Math.max(1, ...s.sent_by_day.map(d => d.n));
+  $("chartDay").innerHTML = s.sent_by_day.length ? s.sent_by_day.map(d => `<div class="col" title="${esc(d.day)}: ${d.n}"><span class="n">${d.n}</span><div class="b" style="height:${Math.max(2, Math.round(100 * d.n / max))}%"></div><span class="d">${esc(d.day.slice(5))}</span></div>`).join("") : `<div class="small">No applications sent yet.</div>`;
+  $("accounts").innerHTML = st.accounts.map(a => `<div class="acct"><div class="acct-top"><b>${esc(a.email)}</b>${a.stopped ? '<span class="pill bad">stopped today: bounces</span>' : ""}<span class="small" style="margin-left:auto">${a.sent_today} of ${a.cap} today</span></div>
+    <div class="bar"><span style="width:${Math.min(100, Math.round(100 * a.sent_today / Math.max(1, a.cap)))}%"></span></div>
+    <div class="small">${a.sent_total} sent in all · ${a.bounced} bounced${a.cc ? " · copies " + esc(a.cc) : ""}</div></div>`).join("") +
+    `<div class="small" style="padding-top:10px">Sending window ${esc(st.sending_window[0])} to ${esc(st.sending_window[1])}. ${st.in_sending_hours ? "Sending is allowed right now." : "Outside the sending window right now."}</div>`;
+  bars("byKind", s.sent_by_kind.map(x => ({ k: KIND[x.k] || x.k, n: x.n })));
+  bars("byField", s.sent_by_field); bars("bySource", s.sent_by_source);
+  bars("outcomes", [{ k: "Sent", n: s.outcomes.sent }, { k: "Automatic acknowledgement", n: s.outcomes.acknowledged }, { k: "Reply from a person", n: s.outcomes.replied }, { k: "Bounced", n: s.outcomes.bounced }]);
+}
+
+async function vReview() {
+  const kind = $("reviewKind").value, q = $("reviewSearch").value.trim();
+  const d = await api(`/jobs?kind=${kind}&review=1&limit=500${q ? "&q=" + encodeURIComponent(q) : ""}`);
+  $("reviewTable").innerHTML = `<thead><tr><th>Role / requirement</th><th>Company</th><th>Send to</th><th>Type</th><th></th></tr></thead><tbody>` + (d.jobs.length ? d.jobs.map(j => `<tr>
+    <td data-l="Role"><div class="t1">${esc(j.title.slice(0, 90))}</div><div class="t2">${esc(j.location || "")}</div></td>
+    <td data-l="Company">${esc(j.company.slice(0, 44))}</td>
+    <td data-l="Send to"><div>${esc(j.emails[0])}</div><div class="t2">${esc((j.email_source || "in the job post").slice(0, 60))}</div></td>
+    <td data-l="Type">${statusPill(j.type)}</td>
+    <td class="act nowrap"><button class="btn sm" data-view="${j.id}">View</button> <button class="btn sm good" data-do="approve" data-id="${j.id}">Approve</button> <button class="btn sm danger" data-do="reject" data-id="${j.id}">Reject</button></td></tr>`).join("") : `<tr><td colspan="5" class="empty">Nothing is waiting here.</td></tr>`) + "</tbody>";
+}
+
+async function vSent() {
+  const all = await api("/sent"), q = $("sentSearch").value.trim().toLowerCase(), f = $("sentStatus").value.toLowerCase();
+  const rows = all.filter(j => (!q || (j.company + j.title + j.to_email).toLowerCase().includes(q)) && (!f || j.delivery.toLowerCase().startsWith(f)));
+  $("sentTable").innerHTML = `<thead><tr><th>Sent</th><th>Role</th><th>Company</th><th>To</th><th>From</th><th>Status</th><th></th></tr></thead><tbody>` + (rows.length ? rows.map(j => `<tr>
+    <td data-l="Sent" class="nowrap num">${esc(when(j.sent_at))}</td>
+    <td data-l="Role"><div class="t1">${esc(j.title.slice(0, 80))}</div><div class="t2">${esc(j.type)} · ${esc(j.category || "")}</div></td>
+    <td data-l="Company">${esc(j.company.slice(0, 40))}</td><td data-l="To">${esc(j.to_email)}</td>
+    <td data-l="From" class="t2">${esc((j.sender || "").split("@")[0])}</td><td data-l="Status">${statusPill(j.delivery.replace(/ \(.*/, "").replace("Sent, no bounce", "Sent"))}</td>
+    <td class="act"><button class="btn sm" data-view="${j.id}">View</button></td></tr>`).join("") : `<tr><td colspan="7" class="empty">No applications match.</td></tr>`) + "</tbody>";
+}
+
+async function vJobs() {
+  const q = $("jobSearch").value.trim(), t = $("jobType").value, size = 50;
+  const d = await api(`/jobs?kind=jobs&days=14&limit=${size}&offset=${state.jobOffset}${$("jobEmail").checked ? "&has_email=1" : ""}${t ? "&type=" + t : ""}${q ? "&q=" + encodeURIComponent(q) : ""}`);
+  $("jobTable").innerHTML = `<thead><tr><th>Position</th><th>Company</th><th>Where</th><th>Published</th><th>HR email</th><th>Stage</th><th></th></tr></thead><tbody>` + (d.jobs.length ? d.jobs.map(j => `<tr>
+    <td data-l="Position"><div class="t1"><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title.slice(0, 80))}</a></div><div class="t2">${esc(j.type)} · ${esc(j.category || "")} · score ${j.score} · ${esc(j.source)}</div></td>
+    <td data-l="Company">${esc(j.company.slice(0, 40))}</td><td data-l="Where">${esc((j.location || (j.remote ? "Remote" : "")).slice(0, 34))}</td>
+    <td data-l="Published" class="nowrap num">${esc(j.posted_at || when(j.found_at).slice(0, 10))}</td><td data-l="HR email">${esc(j.emails[0] || "")}</td>
+    <td data-l="Stage">${statusPill(j.stage)}</td><td class="act"><button class="btn sm" data-view="${j.id}">View</button></td></tr>`).join("") : `<tr><td colspan="7" class="empty">No jobs match.</td></tr>`) + "</tbody>";
+  $("jobPage").textContent = d.total ? `${state.jobOffset + 1}–${Math.min(state.jobOffset + size, d.total)} of ${d.total}` : "";
+  $("jobPrev").disabled = state.jobOffset === 0; $("jobNext").disabled = state.jobOffset + size >= d.total;
+}
+
+async function vSources() {
+  const all = await api("/sources"), q = $("srcSearch").value.trim().toLowerCase(), f = $("srcState").value;
+  const rows = all.filter(s => (!q || (s.name + " " + s.region).toLowerCase().includes(q)) && (!f || (f === "on") === s.enabled));
+  $("srcTable").innerHTML = `<thead><tr><th>Source</th><th>Country / region</th><th>Last read</th><th>Jobs read</th><th>New</th><th>On</th></tr></thead><tbody>` + rows.map(s => `<tr>
+    <td data-l="Source"><div class="t1">${esc(s.name)}</div>${s.home ? `<div class="t2"><a href="${esc(s.home)}" target="_blank" rel="noopener">${esc(s.home.replace(/^https?:\/\//, "").slice(0, 46))}</a></div>` : ""}</td>
+    <td data-l="Country">${esc(s.region || "")}</td><td data-l="Last read" class="nowrap num">${s.last_run ? esc(when(s.last_run.started_at)) : '<span class="t2">never</span>'}${s.last_run && s.last_run.error ? ' <span class="pill bad">error</span>' : ""}</td>
+    <td data-l="Jobs read" class="num">${s.last_run ? s.last_run.fetched : ""}</td><td data-l="New" class="num">${s.last_run ? s.last_run.added : ""}</td>
+    <td class="act"><button class="switch ${s.enabled ? "on" : ""}" role="switch" aria-checked="${s.enabled}" aria-label="${esc(s.name)}" data-src="${esc(s.name)}" data-on="${s.enabled ? 1 : 0}"></button></td></tr>`).join("") + "</tbody>";
+}
+
+/* ---------- sign-in ---------- */
+async function gate() {
+  const first = (await fetch("/setup").then(r => r.json())).needed;
+  $("gate").dataset.mode = first ? "setup" : "login"; $("gate").hidden = false; $("gateErr").textContent = "";
+  $("gateTitle").textContent = first ? "Create the first user" : "Sign in";
+  $("gateNote").textContent = first ? "Nobody can sign in yet. This first user owns the account and runs the service. Password: at least 10 characters." : "";
+  $("gateName").hidden = !first; $("gateBtn").textContent = first ? "Create and sign in" : "Sign in";
+  $("gatePass").autocomplete = first ? "new-password" : "current-password";
+}
+$("gateForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const who = { email: $("gateEmail").value.trim(), password: $("gatePass").value, name: $("gateName").value.trim() };
+  const post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(r => r.json());
+  if ($("gate").dataset.mode === "setup") { const made = await post("/setup", who); if (made.error) { $("gateErr").textContent = made.error; return; } }
+  const r = await post("/login", who);
+  if (r.error) { $("gateErr").textContent = r.error; return; }
+  token.set(r.token); $("gatePass").value = ""; $("gate").hidden = true; load();
+});
+$("outBtn").onclick = async () => { try { await api("/logout", "POST"); } catch {} token.set(null); state.me = null; $("whoami").textContent = ""; gate(); };
+
+/* ---------- schedule ---------- */
+const runPill = st => `<span class="pill ${({ done: "ok", failed: "bad", running: "warn", queued: "warn" })[st] || "mute"}">${esc(st)}</span>`;
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+$("schDays").innerHTML = DAYS.map((d, i) => `<label><input type="checkbox" value="${i}" checked>${d}</label>`).join("");
+$("schKind").onchange = () => { const daily = $("schKind").value === "daily"; $("schAt").hidden = !daily; $("schDays").hidden = !daily; $("schEvery").hidden = daily; $("schEveryL").hidden = daily; };
+$("schAdd").onclick = async () => {
+  const body = $("schKind").value === "daily"
+    ? { kind: "daily", at: $("schAt").value, days: [...document.querySelectorAll("#schDays input:checked")].map(i => +i.value) }
+    : { kind: "interval", every_minutes: +$("schEvery").value };
+  const r = await api("/schedules", "POST", body); toast(r.error ? r.error : "Schedule added"); load();
+};
+$("runNow").onclick = async () => { const r = await api("/cycles", "POST"); toast(r.error ? r.error : r.queued ? "Run queued; it starts within a few seconds" : r.note); load(); };
+async function vSchedule() {
+  const [me, list, runs] = await Promise.all([api("/me"), api("/schedules"), api("/cycles?limit=20")]);
+  $("schNote").textContent = `Times are in your account's time zone (${me.account.timezone}). A run does the whole process once: find jobs, write, send, record.`;
+  $("runNote").textContent = me.not_ready ? "The bot cannot run yet: " + me.not_ready + "." : "";
+  $("schTable").innerHTML = `<thead><tr><th>Schedule</th><th>Next run</th><th>Last run</th><th>On</th><th></th></tr></thead><tbody>` + (list.length ? list.map(x => `<tr>
+    <td data-l="Schedule"><span class="t1">${x.kind === "daily" ? "Every " + (x.days.length === 7 ? "day" : x.days.map(d => DAYS[d]).join(", ")) + " at " + esc(x.at) : "Every " + x.every_minutes + " minutes"}</span></td>
+    <td data-l="Next run" class="nowrap num">${x.enabled ? esc(utc(x.next_run_at)) : '<span class="t2">switched off</span>'}</td>
+    <td data-l="Last run" class="nowrap num">${esc(utc(x.last_run_at)) || '<span class="t2">never</span>'}</td>
+    <td class="act"><button class="switch ${x.enabled ? "on" : ""}" role="switch" aria-checked="${x.enabled}" aria-label="schedule ${x.id}" data-sch="${x.id}" data-on="${x.enabled ? 1 : 0}"></button></td>
+    <td class="act"><button class="btn sm danger" data-schdel="${x.id}">Delete</button></td></tr>`).join("") : `<tr><td colspan="5" class="empty">No schedule yet. Add one above, or use Run now.</td></tr>`) + "</tbody>";
+  $("runTable").innerHTML = `<thead><tr><th>Asked for</th><th>By</th><th>State</th><th>Started</th><th>Finished</th><th></th></tr></thead><tbody>` + (runs.length ? runs.map(c => `<tr>
+    <td data-l="Asked for" class="nowrap num">${esc(utc(c.requested_at))}</td><td data-l="By">${c.trigger === "schedule" ? "schedule" : "you"}</td>
+    <td data-l="State">${runPill(c.status)} <span class="t2">${esc(c.note || "")}</span></td>
+    <td data-l="Started" class="nowrap num">${esc(utc(c.started_at))}</td><td data-l="Finished" class="nowrap num">${esc(utc(c.finished_at))}</td>
+    <td class="act nowrap">${c.status === "queued" || c.status === "running" ? `<button class="btn sm danger" data-stop="${c.id}">Stop</button> ` : ""}${c.log_file ? `<button class="btn sm" data-log="${c.id}">Log</button>` : ""}</td></tr>`).join("") : `<tr><td colspan="6" class="empty">No runs yet.</td></tr>`) + "</tbody>";
+}
+async function openLog(id) {
+  const r = await api(`/cycles/${id}/log?tail=400`);
+  $("dTitle").textContent = "Run " + id; $("dBody").innerHTML = `<div class="block"><pre>${esc(r.log || r.error || "")}</pre></div>`;
+  $("scrim").classList.add("on"); $("drawer").classList.add("on"); $("drawer").setAttribute("aria-hidden", "false");
+}
+
+async function vProcess() {
+  const [procs, log] = await Promise.all([api("/processes"), api("/processes/log?limit=40")]);
+  $("procTable").innerHTML = `<thead><tr><th>Step</th><th>What it does</th><th>Last run</th><th>Result</th><th>On</th></tr></thead><tbody>` + procs.map(p => `<tr>
+    <td data-l="Step"><span class="t1">${esc(p.name)}</span></td><td data-l="What it does">${esc(p.what)}</td>
+    <td data-l="Last run" class="nowrap num">${esc(when(p.last_started)) || '<span class="t2">never</span>'}</td>
+    <td data-l="Result">${p.last_ok === null ? (p.last_started ? statusPill("running") : "") : p.last_ok ? '<span class="pill ok">ok</span>' : `<span class="pill bad">failed</span> <span class="t2">${esc(p.last_note || "")}</span>`}</td>
+    <td class="act"><button class="switch ${p.enabled ? "on" : ""}" role="switch" aria-checked="${p.enabled}" aria-label="${esc(p.name)}" data-proc="${esc(p.name)}" data-on="${p.enabled ? 1 : 0}"></button></td></tr>`).join("") + "</tbody>";
+  $("logTable").innerHTML = `<thead><tr><th>Started</th><th>Step</th><th>Finished</th><th>Result</th></tr></thead><tbody>` + (log.length ? log.map(l => `<tr>
+    <td data-l="Started" class="nowrap num">${esc(when(l.started_at))}</td><td data-l="Step">${esc(l.step)}</td><td data-l="Finished" class="nowrap num">${l.finished_at ? esc(when(l.finished_at)) : statusPill("running")}</td>
+    <td data-l="Result">${l.ok === null ? "" : l.ok ? '<span class="pill ok">ok</span>' : `<span class="pill bad">failed</span> <span class="t2">${esc(l.note || "")}</span>`}</td></tr>`).join("") : `<tr><td colspan="4" class="empty">No runs recorded yet.</td></tr>`) + "</tbody>";
+}
+
+const LABELS = { "sending.review": "Review mode (auto, semi, manual)", "sending.per_run": "Emails per account in each run", "sending.warmup_caps": "Daily limit per account, by week",
+  "sending.daily_ceiling": "Highest daily limit per account", "sending.hours": "Sending window", "sending.days": "Sending days (0 = Monday)", "sending.gap_seconds": "Pause between two emails (seconds)",
+  "sending.same_company_days": "Do not write to the same company again for (days)", "sending.max_bounce_rate": "Stop an account above this bounce share", "sending.send_from": "Accounts that send",
+  "sending.batch_size": "Full batch size", "sending.wait_for_full_batch": "Wait until the whole batch is ready", "sending.send_anyway_after_hour": "Send what is ready after this hour",
+  "loop.pause_minutes": "Pause between runs (minutes)", "loop.email_lookups": "Companies looked up for an email per run", "loop.email_lookup_min_score": "Lowest match score for an email lookup",
+  "ai.require_ai_for_sending": "Only send AI-written emails", "ai.per_run": "Resumes written per run", "ai.claude_model": "Claude model (backup)", "max_age_days": "Only jobs published in the last (days)",
+  "regions": "Regions you work in", "open_to_relocation": "Include on-site jobs abroad", "apply_to_every_job_with_email": "Apply to every job that has an HR email",
+  "daily_target.full": "Full-time jobs matched per day", "daily_target.part": "Part-time jobs matched per day", "min_score.full": "Lowest match score, full-time", "min_score.part": "Lowest match score, part-time",
+  "leads.per_day_per_account": "Lead emails per account per day", "leads.min_days_left": "Skip tenders closing within (days)", "followup.after_days": "Follow up after (days)", "followup.per_day_per_account": "Follow-ups per account per day",
+  "sources.auto_approve": "Use newly found sources at once", "sources.countries_per_cycle": "Countries checked per discovery round", "sources.recheck_days": "Look at a country again after (days)" };
+async function vSettings() {
+  const cfg = await api("/config");
+  const flat = (o, pre = "") => Object.entries(o).flatMap(([k, v]) => v && typeof v === "object" && !Array.isArray(v) ? flat(v, pre + k + ".") : [[pre + k, v]]);
+  const vals = Object.fromEntries(flat(cfg.effective));
+  $("setTable").innerHTML = `<thead><tr><th>Setting</th><th>Value</th><th></th></tr></thead><tbody>` + Object.keys(LABELS).filter(k => k in vals).map(k => `<tr>
+    <td data-l="Setting"><div class="t1">${LABELS[k]}</div><div class="t2">${esc(k)}${k in cfg.overrides ? ' · <span class="pill info">changed here</span>' : ""}</div></td>
+    <td data-l="Value"><input class="field" style="width:100%;max-width:340px" data-key="${esc(k)}" value="${esc(typeof vals[k] === "string" ? vals[k] : JSON.stringify(vals[k]))}"></td>
+    <td class="act nowrap"><button class="btn sm primary" data-save="${esc(k)}">Save</button> ${k in cfg.overrides ? `<button class="btn sm" data-reset="${esc(k)}">Reset</button>` : ""}</td></tr>`).join("") + "</tbody>";
+}
+
+/* ---------- job drawer ---------- */
+async function openJob(id) {
+  const j = await api("/jobs/" + id); state.job = j;
+  $("dTitle").textContent = j.title;
+  const row = (a, b) => b ? `<span>${a}</span><span>${b}</span>` : "";
+  $("dBody").innerHTML = `<div class="kv">${row("Company", esc(j.company))}${row("Type", esc(j.type) + " · " + esc(j.category || ""))}${row("Where", esc(j.location || ""))}
+      ${row("Stage", statusPill(j.stage))}${row("Send to", esc(j.emails.join(", ")))}${row("Email found", esc(j.email_source || (j.emails.length ? "in the job post" : "")))}
+      ${row("Sent", j.sent_at ? esc(when(j.sent_at)) + " from " + esc(j.sender) : "")}${row("Published", esc(j.posted_at || ""))}${row("Source", esc(j.source))}
+      ${row("Link", j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener">Open the job post</a>` : "")}${row("Company site", j.company_url ? `<a href="${esc(j.company_url)}" target="_blank" rel="noopener">${esc(j.company_url)}</a>` : "")}</div>
+    <div class="toolbar">${j.send_status === null && j.emails.length && j.email_body ? `<button class="btn good" data-do="approve" data-id="${j.id}">Approve</button><button class="btn danger" data-do="reject" data-id="${j.id}">Reject</button>` : ""}
+      ${j.type.startsWith("Lead") ? "" : `<button class="btn" id="prepBtn">${j.interview_prep ? "Write interview prep again" : "Write interview prep"}</button>`}<span class="small" id="prepNote"></span></div>
+    <div class="block"><h4>Email</h4><pre>${j.email_subject ? esc("Subject: " + j.email_subject + "\n\n" + j.email_body) : "Not written yet."}</pre></div>
+    ${j.interview_prep ? `<div class="block"><h4>Interview preparation</h4><pre id="prepText">${esc(j.interview_prep)}</pre></div>` : `<div class="block" id="prepBlock" hidden><h4>Interview preparation</h4><pre id="prepText"></pre></div>`}
+    <div class="block"><h4>Job description</h4><pre>${esc(j.description || "No description stored.")}</pre></div>`;
+  $("scrim").classList.add("on"); $("drawer").classList.add("on"); $("drawer").setAttribute("aria-hidden", "false");
+  const pb = $("prepBtn");
+  if (pb) pb.onclick = async () => { pb.disabled = true; $("prepNote").textContent = "Writing, about half a minute..."; const r = await api(`/jobs/${id}/prep`, "POST"); pb.disabled = false;
+    if (r.error) { $("prepNote").textContent = r.error; return; } $("prepNote").textContent = "Written by " + r.written_by; const b = $("prepBlock"); if (b) b.hidden = false; $("prepText").textContent = r.interview_prep; };
+}
+const closeJob = () => { $("scrim").classList.remove("on"); $("drawer").classList.remove("on"); $("drawer").setAttribute("aria-hidden", "true"); };
+$("dClose").onclick = closeJob; $("scrim").onclick = closeJob; document.addEventListener("keydown", e => { if (e.key === "Escape") closeJob(); });
+
+/* ---------- actions (one listener for everything) ---------- */
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.view) return openJob(t.dataset.view);
+  if (t.dataset.log) return openLog(t.dataset.log);
+  if (t.dataset.sch) { await api("/schedules/" + t.dataset.sch, "PUT", { enabled: t.dataset.on !== "1" }); return load(); }
+  if (t.dataset.schdel) { await api("/schedules/" + t.dataset.schdel, "DELETE"); toast("Schedule deleted"); return load(); }
+  if (t.dataset.stop) { const r = await api(`/cycles/${t.dataset.stop}/stop`, "POST"); toast(r.stopped ? "Stopped" : "It had already ended"); return load(); }
+  if (t.dataset.do) { const r = await api(`/jobs/${t.dataset.id}/${t.dataset.do}`, "POST"); toast(r.changed ? (t.dataset.do === "approve" ? "Approved" : "Rejected") : "No change: " + (r.job ? r.job.stage : "not found")); closeJob(); return load(); }
+  if (t.dataset.src != null) { const on = t.dataset.on !== "1"; await api(`/sources/${encodeURIComponent(t.dataset.src)}/${on ? "enable" : "disable"}`, "POST"); toast(`${t.dataset.src}: ${on ? "on" : "off"}`); return load(); }
+  if (t.dataset.proc != null) { const on = t.dataset.on !== "1"; await api(`/processes/${t.dataset.proc}/${on ? "enable" : "disable"}`, "POST"); toast(`${t.dataset.proc}: ${on ? "on" : "off"}`); return load(); }
+  if (t.dataset.save) { const raw = document.querySelector(`input[data-key="${CSS.escape(t.dataset.save)}"]`).value.trim(); let v; try { v = JSON.parse(raw); } catch { v = raw; }
+    const r = await api("/config", "PUT", { [t.dataset.save]: v }); toast(r.error ? r.error : "Saved"); return load(); }
+  if (t.dataset.reset) { await api("/config/" + encodeURIComponent(t.dataset.reset), "DELETE"); toast("Back to the default"); return load(); }
+});
+const later = fn => { let h; return () => { clearTimeout(h); h = setTimeout(fn, 250); }; };
+["reviewSearch", "sentSearch", "srcSearch"].forEach(id => $(id).addEventListener("input", later(() => load())));
+["reviewKind", "sentStatus", "srcState"].forEach(id => $(id).addEventListener("change", () => load()));
+$("jobSearch").addEventListener("input", later(() => { state.jobOffset = 0; load(); }));
+["jobType", "jobEmail"].forEach(id => $(id).addEventListener("change", () => { state.jobOffset = 0; load(); }));
+$("jobPrev").onclick = () => { state.jobOffset = Math.max(0, state.jobOffset - 50); load(); }; $("jobNext").onclick = () => { state.jobOffset += 50; load(); };
+
+/* ---------- load ---------- */
+const VIEWS = { overview: vOverview, review: vReview, sent: vSent, jobs: vJobs, schedule: vSchedule, sources: vSources, process: vProcess, settings: vSettings };
+async function load(manual) {
+  try { const st = await shell(); await VIEWS[state.tab](st); if (manual) toast("Up to date"); }
+  catch (err) { if (err instanceof SignedOut) return; $("loopPill").className = "pill bad"; $("loopPill").innerHTML = "<i></i>Admin server not reachable"; }
+}
+drawTabs(); token.get() ? load() : gate();
+setInterval(() => { if (!$("drawer").classList.contains("on") && document.activeElement.tagName !== "INPUT") load(); }, 30000);
+</script>
+</body>
+</html>

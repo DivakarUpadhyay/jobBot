@@ -1,0 +1,45 @@
+# NO LONGER READ BY THE BOT. Since 2026-10-12 this lives in the database (table `catalogue`; see GET /catalogue, POST /catalogue).
+# This file is only the starting copy, read once when the table did not exist yet.
+#
+# Known job sites by region, tried first by `jobbot source discover`. A site is only proposed
+# if the bot can actually read jobs from it at that moment. Add lines freely.
+# Sites the bot already has a dedicated reader for (104, Yourator, Remotive ...) are not listed.
+
+Taiwan:
+  - {url: "https://www.518.com.tw/job-index.html?ad=English"}
+  - {url: "https://www.1111.com.tw/search/job?ks=English"}
+  - {url: "https://www.cake.me/jobs?location_list%5B0%5D=Taiwan"}
+  - {url: "https://meet.jobs/en/jobs"}
+  - {url: "https://www.tealit.com/?view=section&sid=36"}
+  - {url: "https://www.michaelpage.com.tw/jobs/technology"}
+  - {url: "https://www.robertwalters.com.tw/jobs/technology.html"}
+
+Remote:
+  - {url: "https://weworkremotely.com/remote-jobs.rss"}
+  - {url: "https://remote.co/remote-jobs/developer/feed/"}
+  - {url: "https://jobspresso.co/feed/?post_type=job_listing"}
+  - {url: "https://nodesk.co/remote-jobs/index.xml"}
+  - {url: "https://www.realworkfromanywhere.com/rss.xml"}
+  - {url: "https://authenticjobs.com/feed/"}
+  - {url: "https://dotnetdevs.co/jobs"}
+  - {url: "https://larajobs.com/feed"}
+  - {url: "https://jobs.ashbyhq.com/lemon-io"}
+
+Japan:
+  - {url: "https://japan-dev.com/jobs"}
+  - {url: "https://www.tokyodev.com/jobs"}
+
+Singapore:
+  - {url: "https://www.techinasia.com/jobs"}
+  - {url: "https://sg.jobstreet.com/software-engineer-jobs"}
+
+Germany:
+  - {url: "https://berlinstartupjobs.com/feed/"}
+  - {url: "https://germantechjobs.de/rss"}
+
+Netherlands:
+  - {url: "https://www.techmeabroad.com/jobs/rss"}
+
+India:
+  - {url: "https://www.naukri.com/dot-net-jobs"}
+  - {url: "https://cutshort.io/jobs/dotnet-jobs"}

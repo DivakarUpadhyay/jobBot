@@ -1,0 +1,6 @@
+* text=auto
+# scripts that run on Linux (the server, git hooks) must keep LF line endings
+tests/hooks/* text eol=lf
+deploy/* text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf

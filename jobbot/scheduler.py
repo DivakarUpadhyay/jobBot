@@ -126,6 +126,9 @@ def request(account_id, trigger="manual", user_id=None, schedule_id=None):
 
 
 def _finish(cycle_id, status, note="", exit_code=None):
+    from . import ops
+    ops.event("run ended", level="warning" if status == "failed" else "info", cycle=cycle_id, status=status, note=note,
+              exit_code=exit_code)
     ct._write("UPDATE cycles SET status=?, note=?, exit_code=?, finished_at=? WHERE id=? AND status IN ('queued','running')",
               status, note, exit_code, ct.now(), cycle_id)
 
@@ -174,12 +177,9 @@ def _start(run):
     acc = ct.account(run["account_id"])
     home = ct.home_of(acc)
     reason = ct.ready_to_run(acc)
-    if not reason and (home / "loop.lock").exists():
-        try:
-            if _alive(int((home / "loop.lock").read_text().strip() or 0)):
-                reason = "the continuous loop is already running for this account"
-        except (OSError, ValueError):
-            pass
+    from .sendqueue import holder
+    if not reason and holder(home / "loop.lock"):
+        reason = "the continuous loop is already running for this account"
     if reason:
         return _finish(run["id"], "skipped", reason)
     (home / "logs").mkdir(parents=True, exist_ok=True)
@@ -222,8 +222,14 @@ def tick():
 
 
 def run_forever(stop_event):
+    from . import ops
     while not stop_event.wait(TICK_SECONDS):
         try:
             tick()
         except Exception as e:   # one bad pass must not end the service
             print(f"scheduler: {type(e).__name__}: {e}", flush=True)
+            ops.event("scheduler tick failed", level="error", error=f"{type(e).__name__}: {e}")
+        try:
+            ops.housekeeping()   # heartbeat for /health/deep, alert checks, the daily backup
+        except Exception as e:
+            ops.event("housekeeping failed", level="error", error=f"{type(e).__name__}: {e}")

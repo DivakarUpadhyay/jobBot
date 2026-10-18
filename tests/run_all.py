@@ -22,9 +22,34 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+
+def _test_data():
+    """Run against a copy of the live data in tests/.data, so nothing the tests do can reach the live database.
+    Set JOBBOT_TEST_LIVE=1 to test the live data itself (the old behaviour)."""
+    if os.environ.get("JOBBOT_TEST_LIVE") == "1" or os.environ.get("JOBBOT_DATA"):
+        return None
+    live = ROOT
+    data = ROOT / "tests" / ".data"
+    import shutil
+    shutil.rmtree(data, ignore_errors=True)
+    data.mkdir(parents=True)
+    src = sqlite3.connect(live / "jobbot.db")
+    dst = sqlite3.connect(data / "jobbot.db")
+    src.backup(dst)
+    src.close(), dst.close()
+    for f in [live / ".env", *live.glob("accounts/*/.env")]:
+        target = data / f.relative_to(live)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(f, target)
+    os.environ["JOBBOT_DATA"] = str(data)
+    return data
+
+
+TEST_DATA = _test_data()
+
 from jobbot import api, cleanup, contacts as ct, db, discover as dc, filter as flt, leads, mailer, render  # noqa: E402
 from jobbot import control, profilestore, report as rp, scheduler, sendqueue as sq, sourcestore  # noqa: E402
-from jobbot import tailor as tl, use_home  # noqa: E402
+from jobbot import DATA, tailor as tl, use_home  # noqa: E402
 from jobbot.config import (_leaves, enabled, file_config, load_config, load_sources, overrides, reset_setting,  # noqa: E402
                            set_setting, setting_problem, settings_list)
 from jobbot.sources import ADAPTERS, generic  # noqa: E402
@@ -189,7 +214,11 @@ def _read(name):
     params = dict(s.get("params") or {})
     if s["adapter"] == "generic":
         params.setdefault("name", name); params.setdefault("region", s.get("region", "Remote"))
-    return ADAPTERS[s["adapter"]](cfg, params)
+    # a sample is enough to show the reader works: two keywords, one page each
+    small = cfg | {"search": cfg["search"] | {"keywords": cfg["search"]["keywords"][:2],
+                                              "part_time_keywords": cfg["search"].get("part_time_keywords", [])[:1]}}
+    params.update({k: 1 for k in ("pages", "remote_pages") if k in params or s["adapter"] == "tw104"})
+    return ADAPTERS[s["adapter"]](small, params)
 
 
 for _name in ("104", "remotive", "weworkremotely", "hn-whoishiring", "ted-tenders"):
@@ -265,11 +294,15 @@ def _():
     assert v["skip"] == "post mostly in Chinese", v["skip"]
 
 
-@test("Filter", "India: remote and freelance kept, on-site left out")
+@test("Filter", "remote-only countries: remote and freelance kept, on-site left out")
 def _():
-    assert "only remote or freelance" in flt.judge(job(remote=False, location="Pune, India"), cfg)["skip"]
-    assert flt.judge(job(remote=True, location="India"), cfg)["skip"] is None
-    assert flt.judge(job(remote=False, location="Mumbai, India", track="freelance"), cfg)["skip"] is None
+    rules = {"India": ["india"]}
+    c = cfg | {"remote_only_countries": rules}
+    assert "only remote or freelance" in flt.judge(job(remote=False, location="Pune, India"), c)["skip"]
+    assert flt.judge(job(remote=True, location="India"), c)["skip"] is None
+    assert flt.judge(job(remote=False, location="Mumbai, India", track="freelance"), c)["skip"] is None
+    live = sorted(cfg.get("remote_only_countries") or {})
+    return f"current setting: remote only in {', '.join(live) or 'no country'}"
 
 
 @test("Filter", "Taiwan: technical any type, non-technical only part-time or temporary")
@@ -296,10 +329,16 @@ def _():
 
 @test("Filter", "the same job from the same source is stored once")
 def _():
+    def clear():
+        con.execute("DELETE FROM jobs WHERE source='test'")
+        con.execute("DELETE FROM postings WHERE source='test'"); con.commit()
+    clear()
     j = job(ext_id="dup-test-1")
     v = flt.judge(j, cfg)
-    first, second = db.insert_job(con, j, v), db.insert_job(con, j, v)
-    con.execute("DELETE FROM jobs WHERE source='test'"); con.commit()
+    try:
+        first, second = db.insert_job(con, j, v), db.insert_job(con, j, v)
+    finally:
+        clear()
     assert first and not second
 
 
@@ -553,27 +592,33 @@ def _():
         con.rollback()
 
 
+def _held_elsewhere(lock_class):
+    """Start another process that holds the lock, as a running send or loop would."""
+    import subprocess
+    code = (f"import sys; sys.path.insert(0, {str(ROOT)!r}); from jobbot import sendqueue as sq; "
+            f"l = sq.{lock_class}().__enter__(); print('held', flush=True); sys.stdin.read()")
+    p = subprocess.Popen([sys.executable, "-c", code], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    assert p.stdout.readline().strip() == "held", "the helper process could not take the lock"
+    return p
+
+
 @test("Sending", "two sends cannot run at the same time")
 def _():
-    if sq.LOCK.exists():
-        try:
-            sq.SendLock().__enter__()
-            raise AssertionError("a second send was allowed while one is running")
-        except RuntimeError:
-            return "a send is running now; a second one is refused"
-    # the lock is per process: another live process holding it (here the parent shell) blocks this one
-    sq.LOCK.write_text(str(os.getppid()))
+    other = _held_elsewhere("SendLock")
     try:
+        assert sq.holder(sq.LOCK) == other.pid
         try:
             with sq.SendLock():
                 raise AssertionError("second send was allowed")
         except RuntimeError:
             pass
     finally:
-        sq.LOCK.unlink(missing_ok=True)
+        other.kill(); other.wait()
+    assert sq.holder(sq.LOCK) is None, "a killed send left its lock behind"
     with sq.SendLock():
-        pass
-    assert not sq.LOCK.exists()
+        assert sq.holder(sq.LOCK) == os.getpid()
+    assert sq.holder(sq.LOCK) is None
+    return "refused while another process sends; a killed send leaves no lock"
 
 
 @test("Sending", "template-only drafts are held back when AI writing is required")
@@ -643,16 +688,24 @@ def _():
 
 @test("Pipeline", "only one repeating loop can run at a time")
 def _():
-    import os
-    if sq.LOOP_LOCK.exists() and sq.pid_alive(int(sq.LOOP_LOCK.read_text() or 0)):
+    if sq.holder(sq.LOOP_LOCK):
         try:
             sq.LoopLock().__enter__()
             raise AssertionError("a second loop was allowed while one is running")
         except RuntimeError:
             return "a loop is running now; a second one is refused"
+    other = _held_elsewhere("LoopLock")
+    try:
+        try:
+            sq.LoopLock().__enter__()
+            raise AssertionError("a second loop was allowed while one is running")
+        except RuntimeError:
+            pass
+    finally:
+        other.kill(); other.wait()
     with sq.LoopLock():
-        assert int(sq.LOOP_LOCK.read_text()) == os.getpid() and sq.pid_alive(os.getpid())
-    assert not sq.LOOP_LOCK.exists() and not sq.pid_alive(999999)
+        assert sq.holder(sq.LOOP_LOCK) == os.getpid()
+    assert sq.holder(sq.LOOP_LOCK) is None and not sq.pid_alive(999999)
     return "lock taken and released"
 
 
@@ -725,10 +778,23 @@ def _():
 
 @test("Leads", "lead emails always wait for your approval")
 def _():
-    n = con.execute("SELECT COUNT(*) FROM jobs WHERE job_type='lead' AND send_status='approved'").fetchone()[0]
-    assert n == 0, f"{n} leads are approved"
+    from jobbot import cli_send
+    lead = Job(source="test", ext_id="zz-test-lead", title="Tender: software", company="Test Agency", url="u",
+               description="tender@lead-test.example", location="Remote", region="", remote=True, job_type="lead", posted_at="")
+    try:
+        db.insert_job(con, lead, {"track": "lead", "category": "x", "emails": ["tender@lead-test.example"], "score": 99,
+                                  "notes": "", "skip": None, "dedupe_key": "leadtest|x"})
+        con.execute("UPDATE jobs SET status='matched', job_type='lead', tailored_by='ai' WHERE ext_id='zz-test-lead'")
+        auto = cfg | {"sending": cfg["sending"] | {"review": "auto"}}
+        cli_send._auto_approve(con, auto)
+        state = con.execute("SELECT send_status FROM jobs WHERE ext_id='zz-test-lead'").fetchone()[0]
+        assert state is None, f"automatic review approved a lead email ({state})"
+    finally:
+        con.execute("DELETE FROM jobs WHERE ext_id='zz-test-lead'")
+        con.execute("DELETE FROM postings WHERE ext_id='zz-test-lead'")
+        con.commit()
     waiting = con.execute("SELECT COUNT(*) FROM jobs WHERE job_type='lead' AND status='matched' AND send_status IS NULL").fetchone()[0]
-    return f"{waiting} waiting"
+    return f"automatic review leaves leads alone; {waiting} waiting for you"
 
 
 @test("Prospects", "city and district come from the address or its postal code")
@@ -745,28 +811,34 @@ def _():
     return f"{len(cases)} addresses"
 
 
-@test("Prospects", "email is Chinese then English, offers full-time, part-time and freelance, mentions the Gold Card")
+@test("Prospects", "Taiwan email is Chinese then English, about one kind of work, mentions the Gold Card")
 def _():
     from jobbot import prospects as pr
     row = {"industry": "30", "name_zh": "測試資訊股份有限公司", "search": "測試資訊", "short_name": "測試資訊"}
-    subject, body = pr.write(row, master, "me@example.com")
-    zh, _, en = body.partition("English version")
-    assert "人力資源部 您好" in zh and "就業金卡" in zh and "全職、兼職" in zh and "freelance" in zh and "敬祝 商祺" in zh
-    assert "Dear Hiring Team" in en and "Gold Card" in en and "part-time" in en and "freelance" in en
-    assert "全職、兼職或專案合作" in subject and "測試資訊" in subject and "full-time, part-time or freelance" in subject
-    assert not re.search(r"\{\w+\}", body.replace("me@example.com", "")) and "[" not in body, "placeholder or bracket left"
+    for kind, o in pr.OFFER.items():
+        subject, body = pr.write(row, master, "me@example.com", offer=kind)
+        zh, _, en = body.partition("English version")
+        assert "人力資源部 您好" in zh and "就業金卡" in zh and "敬祝 商祺" in zh, kind
+        assert "Dear Hiring Team" in en and "Gold Card" in en, kind
+        assert o["subj_zh"] in subject and o["subj_en"] in subject and "測試資訊" in subject, kind
+        others = [x["subj_en"] for k, x in pr.OFFER.items() if k != kind]
+        assert not any(x in subject for x in others), f"{kind} email offers more than one kind of work"
+        assert not re.search(r"\{\w+\}", body.replace("me@example.com", "")) and "[" not in body, "placeholder or bracket left"
     return subject[:60]
 
 
-@test("Prospects", "India email is English, has no Gold Card, names the city and offers part-time and freelance")
+@test("Prospects", "India email is English, has no Gold Card, names the city and offers one kind of work")
 def _():
     from jobbot import prospects_india as pi
     row = {"short_name": "Test Softworks", "name_en": "Test Softworks", "search": "Test Softworks", "city": "Pune",
            "industry": "software industry"}
     subject, body = pi.write(row, master, "me@example.com")
     assert "Gold Card" not in body and "金卡" not in body and "relocating to Pune" in body
-    assert "part-time" in body and "freelance" in body and "Test Softworks" in subject
-    assert not re.search(r"\{\w+\}", body) and "[" not in body, "placeholder or bracket left"
+    assert "full-time" in subject and "freelance" not in subject and "Test Softworks" in subject
+    subject2, body2 = pi.write(row | {"industry": "hospital"}, master, "me@example.com")
+    assert "freelance" in subject2 and "Services I offer" in body2
+    for b in (body, body2):
+        assert not re.search(r"\{\w+\}", b) and "[" not in b, "placeholder or bracket left"
     assert pi.fit("software industry") == (1, "it") and pi.fit("pharmaceutical industry")[1] == "health"
     return subject[-40:]
 
@@ -878,8 +950,8 @@ def _forget_test_accounts():
     """Remove everything earlier or current test runs created in the control database, and their folders."""
     import shutil
     for acc in control._all("SELECT * FROM accounts WHERE slug LIKE 'zz-test%'"):
-        for table in ("schedules", "cycles", "audit", "payments", "tickets", "applications", "acct_settings", "acct_documents",
-                      "acct_prefs", "acct_meta", "acct_process_log"):   # the account's rows in the one database
+        for table in ("schedules", "cycles", "audit", "payments", "tickets", "alerts", "suppressions", "applications",
+                      "acct_settings", "acct_documents", "acct_prefs", "acct_meta", "acct_process_log"):   # the account's rows in the one database
             control._write(f"DELETE FROM {table} WHERE account_id=?", acc["id"])
         control._write("DELETE FROM tokens WHERE user_id IN (SELECT id FROM users WHERE account_id=?)", acc["id"])
         control._write("DELETE FROM users WHERE account_id=?", acc["id"])
@@ -960,10 +1032,14 @@ def _():
     assert call("/config", "PUT", ["not", "an", "object"])[0] == 400
 
 
-@test("API", "admin page is served")
+@test("API", "admin panel, console and customer portal pages are served")
 def _():
     code, page = call("/admin")
-    assert code == 200 and "Job Bot Admin" in page and "Processes" in page and "v-settings" in page
+    assert code == 200 and "JobPilot Admin" in page, "admin panel"
+    code, page = call("/console")
+    assert code == 200 and "Job Bot Admin" in page and "Processes" in page and "v-settings" in page, "console"
+    code, page = call("/app")
+    assert code == 200 and "JobPilot" in page, "customer portal"
 
 
 @test("API", "a process can be switched off and on through the API")
@@ -1093,7 +1169,7 @@ def _():
 @test("API", "passwords and keys are never exposed")
 def _():
     from dotenv import dotenv_values
-    secrets = [v for k, v in dotenv_values(ROOT / ".env").items() if v and ("PASSWORD" in k or "KEY" in k)]
+    secrets = [v for k, v in dotenv_values(DATA / ".env").items() if v and ("PASSWORD" in k or "KEY" in k)]
     blob = json.dumps([call(p)[1] for p in ("/config", "/status", "/sources", "/processes")])
     assert secrets and not any(s in blob or s.replace(" ", "") in blob for s in secrets)
     return f"{len(secrets)} secrets checked"
@@ -1125,7 +1201,7 @@ def _():
         assert call(path, token=None)[0] == 401, f"{path} answered without a sign-in"
         assert call(path, token="jbs_made-up-token")[0] == 401, f"{path} answered to a made-up token"
     assert call("/sources/larajobs/disable", "POST", token=None)[0] == 401 and call("/cycles", "POST", token=None)[0] == 401
-    assert call("/health", token=None)[0] == 200 and "Job Bot Admin" in call("/admin", token=None)[1]
+    assert call("/health", token=None)[0] == 200 and "JobPilot Admin" in call("/admin", token=None)[1]
     assert call("/setup", token=None)[1] == {"needed": False} and call("/setup", "POST", {}, token=None)[0] == 409
     return f"{len(paths)} paths closed, 3 open"
 
@@ -1191,33 +1267,38 @@ def _():
     assert code == 201 and made["account"]["home"] == "accounts/zz-test-customer" and made["owner"]["role"] == "owner", made
     NEW.update(account=made["account"], home=control.home_of(made["account"]),
                token=control.login("zz-test-customer@example.org", PASSWORD)[0])
-    assert NEW["home"].is_dir() and NEW["home"] != ROOT and not (NEW["home"] / "jobbot.db").exists()   # files only; rows in the one database
+    # the paywall is tested in the Portal area; here the account is on the internal (no charge) plan
+    control._write("UPDATE accounts SET plan='internal' WHERE id=?", made["account"]["id"])
+    assert NEW["home"].is_dir() and NEW["home"] != DATA and not (NEW["home"] / "jobbot.db").exists()   # files only; rows in the one database
     theirs = lambda path, *a: call(path, *a, token=NEW["token"])
     assert theirs("/jobs")[1]["total"] == 0 and theirs("/sent")[1] == [] and call("/jobs")[1]["total"] > 0
     assert theirs("/status")[1]["jobs_total"] == 0 and theirs("/status")[1]["accounts"] == []
     assert theirs("/me")[1]["not_ready"] == "the resume has not been filled in yet"
-    assert theirs("/profile/resume")[1]["content"]["name"] == control.PLACEHOLDER_NAME
-    cfg_new = theirs("/config")[1]["effective"]
-    assert cfg_new["sending"]["send_from"] == [] and cfg_new["sending"]["cc"] == {} and cfg_new["sending"]["review"] == "manual"
+    assert theirs("/portal/resume")[1]["content"]["name"] == control.PLACEHOLDER_NAME
+    # customers work only through the portal: the raw settings, documents and sources are closed to them
+    for path, method in (("/config", "GET"), ("/profile/resume", "GET"), ("/sources", "GET"), ("/settings", "GET"),
+                         ("/sources/larajobs/disable", "POST"), ("/config", "PUT"), ("/cycles", "POST"), ("/accounts", "GET")):
+        code = theirs(path, method, {} if method == "PUT" else None)[0]
+        assert code == 403, f"a customer reached {method} {path} ({code})"
     private = [master["name"], master["contact"]["email"], master["contact"]["phone"]] + cfg["sending"]["send_from"]
-    blob = json.dumps([theirs(p)[1] for p in ("/config", "/settings", "/status", "/profile/resume", "/profile/email-templates",
-                                              "/me", "/keys", "/cycles", "/schedules", "/users")], ensure_ascii=False)
+    blob = json.dumps([theirs(p)[1] for p in ("/status", "/portal/resume", "/portal/targets", "/portal/overview", "/portal/details",
+                                              "/portal/cover-letter", "/portal/mailbox", "/me", "/keys", "/schedules", "/users")],
+                      ensure_ascii=False)
     leaked = [x for x in private if x and x in blob]
     assert not leaked, f"your details are visible to the new account: {leaked}"
-    assert "Gold Card" not in blob, "your Gold Card wording is in the new account's email wording"
+    assert "Gold Card" not in blob, "your Gold Card wording is in the new account's answers"
     # a change in one account does not touch the other
-    assert theirs("/sources/larajobs/disable", "POST")[0] == 200
-    assert theirs("/sources/larajobs")[1]["enabled"] is False and call("/sources/larajobs")[1]["enabled"] is True
-    assert theirs("/config", "PUT", {"loop.pause_minutes": 44})[0] == 200
+    targets = theirs("/portal/targets")[1]
+    assert theirs("/portal/targets", "PUT", targets | {"daily_limit": 3})[0] == 200
+    assert theirs("/portal/targets")[1].get("daily_limit") == 3
     assert call("/config")[1]["effective"]["loop"]["pause_minutes"] == cfg["loop"]["pause_minutes"]
-    assert theirs("/accounts")[0] == 403 and len(theirs("/users")[1]) == 1
+    assert len(theirs("/users")[1]) == 1
     assert call("/accounts", "POST", {"name": "zz-test dup", "email": "zz-test-customer@example.org", "password": PASSWORD})[0] == 400
     assert not control._one("SELECT 1 FROM accounts WHERE slug='zz-test-dup'"), "an account was left behind by a refused request"
     with use_home(NEW["home"]):
         inside = [str(x) for x in (db.DB_FILE, render.OUTPUT, rp.REPORTS, sq.LOOP_LOCK)]
-    assert all(x.startswith(str(NEW["home"])) for x in inside[1:]) and db.DB_FILE == ROOT / "jobbot.db"   # one database for all
-    return f"{len(theirs('/sources')[1])} starting sources, 0 jobs, none of {len(private)} private values visible"
-
+    assert all(x.startswith(str(NEW["home"])) for x in inside[1:]) and db.DB_FILE == DATA / "jobbot.db"   # one database for all
+    return f"raw routes closed, 0 jobs, none of {len(private)} private values visible"
 
 @test("Accounts", "schedules: saved in the account's time zone, bad ones refused, not visible to another account")
 def _():
@@ -1255,24 +1336,24 @@ def _():
     scheduler.RUN_COMMAND = [sys.executable, "-c", "import os, pathlib; pathlib.Path(os.environ['JOBBOT_HOME'], 'ran.txt')"
                                                    ".write_text('x'); print('hello from the run')"]
     try:
-        code, asked = theirs("/cycles", "POST")
-        assert code == 201 and asked["queued"] and asked["cycle"]["status"] == "queued"
+        code, asked = theirs("/portal/bot/run", "POST")
+        assert code == 201 and asked["queued"] and asked["cycle"]["status"] == "queued", (code, asked)
         skipped = _wait(account_id, asked["cycle"]["id"], ("skipped",))
         assert skipped["status"] == "skipped" and "resume" in skipped["note"], skipped
-        resume = theirs("/profile/resume")[1]["content"] | {"name": "Test Customer"}
-        assert theirs("/profile/resume", "PUT", {"content": resume})[0] == 200 and theirs("/me")[1]["not_ready"] is None
+        resume = theirs("/portal/resume")[1]["content"] | {"name": "Test Customer"}
+        assert theirs("/portal/resume", "PUT", {"content": resume})[0] == 200 and theirs("/me")[1]["not_ready"] is None
         # a schedule that has fallen due queues exactly one run
-        every = theirs("/schedules", "POST", {"kind": "interval", "every_minutes": 15})[1]
+        every = theirs("/schedules", "POST", {"kind": "interval", "every_minutes": 120})[1]
         control._write("UPDATE schedules SET next_run_at='2000-01-01T00:00:00+00:00' WHERE id=?", every["id"])
         scheduler.tick()
-        runs = [r for r in theirs("/cycles")[1] if r["trigger"] == "schedule"]
+        runs = [r for r in scheduler.cycles(account_id) if r["trigger"] == "schedule"]
         assert len(runs) == 1, f"{len(runs)} runs queued for one due schedule"
-        assert theirs("/cycles", "POST")[1]["queued"] is False, "a second run was queued while one was open"
+        assert theirs("/portal/bot/run", "POST")[1]["queued"] is False, "a second run was queued while one was open"
         done = _wait(account_id, runs[0]["id"], ("done", "failed"))
         assert done["status"] == "done" and done["exit_code"] == 0, done
-        assert (NEW["home"] / "ran.txt").exists() and not (ROOT / "ran.txt").exists(), "the run worked in the wrong folder"
-        assert "hello from the run" in theirs(f"/cycles/{done['id']}/log")[1]["log"]
-        assert call(f"/cycles/{done['id']}/log")[0] == 404 and call(f"/cycles/{done['id']}/stop", "POST")[0] == 409
+        assert (NEW["home"] / "ran.txt").exists() and not (DATA / "ran.txt").exists(), "the run worked in the wrong folder"
+        assert "hello from the run" in scheduler.log_tail(account_id, done["id"])
+        assert call(f"/cycles/{done['id']}/log")[0] == 404, "the owner could read a customer's run log"
         after = next(x for x in theirs("/schedules")[1] if x["id"] == every["id"])
         assert after["next_run_at"] > control.now() and after["last_run_at"]
         theirs(f"/schedules/{every['id']}", "DELETE")
@@ -1280,24 +1361,23 @@ def _():
         scheduler.RUN_COMMAND = real
     return "skipped, then done"
 
-
 @test("Accounts", "a run that is going can be stopped from the API")
 def _():
     theirs = lambda path, *a: call(path, *a, token=NEW["token"])
     real = scheduler.RUN_COMMAND
     scheduler.RUN_COMMAND = [sys.executable, "-c", "import time; time.sleep(120)"]
     try:
-        asked = theirs("/cycles", "POST")[1]["cycle"]
-        going = _wait(NEW["account"]["id"], asked["id"], ("running",))
+        code, asked = theirs("/portal/bot/run", "POST")
+        assert code == 201, asked
+        going = _wait(NEW["account"]["id"], asked["cycle"]["id"], ("running",))
         assert going["status"] == "running" and sq.pid_alive(going["pid"]), going
         assert theirs("/status")[1]["loop_running"] is True and call("/status")[1]["loop_running"] in (True, False)
-        assert theirs(f"/cycles/{asked['id']}/stop", "POST")[1]["stopped"] is True
+        assert theirs("/portal/bot/off", "POST")[0] == 200
         time.sleep(1.5)
-        ended = scheduler.cycle(NEW["account"]["id"], asked["id"])
+        ended = scheduler.cycle(NEW["account"]["id"], asked["cycle"]["id"])
         assert ended["status"] == "stopped" and not sq.pid_alive(going["pid"]), ended
     finally:
         scheduler.RUN_COMMAND = real
-
 
 @test("Accounts", "every change through the API is recorded with who made it")
 def _():
@@ -1373,6 +1453,113 @@ def _():
     rows = [r[0].lower() for r in con.execute("SELECT to_email FROM jobs WHERE send_status='sent'")]
     assert len(rows) == len(set(rows))
     return f"{len(rows)} sent, all to different addresses"
+
+
+# ---------------------------------------------------------------- operations
+@test("Operations", "a backup is made, checked, and restores to the same data")
+def _():
+    from jobbot import ops
+    info = ops.backup("test")
+    try:
+        ok, detail, counts = ops.verify(info["file"])
+        assert ok and counts["postings"] > 0, detail
+        drill = ops.restore_drill()
+        assert drill["ok"] and drill["restored_counts"]["accounts"] == counts["accounts"], drill
+        assert ops.backups()[0].name == Path(info["file"]).name
+    finally:
+        Path(info["file"]).unlink(missing_ok=True)
+        Path(info["file"] + ".json").unlink(missing_ok=True)
+    return f"{info['size_mb']} MB in {info['seconds']} s; restore drill ok"
+
+
+@test("Operations", "an alert is recorded once, can be resolved, and is shown to the operator only")
+def _():
+    from jobbot import ops
+    real, sent = ops._email_alert, []
+    ops._email_alert = lambda to, kind, msg: sent.append(msg)
+    key = "zz-test-alert-" + os.urandom(4).hex()
+    try:
+        assert ops.raise_alert("test", "zz-test: something broke", key=key) is True
+        assert ops.raise_alert("test", "zz-test: something broke", key=key) is False, "the same alert was raised twice"
+        alert = next(a for a in call("/operator/alerts")[1] if a["key"] == key)
+        assert call("/operator/alerts", token=NEW["token"])[0] == 403
+        assert call(f"/operator/alerts/{alert['id']}/resolve", "POST")[1]["resolved"] is True
+        assert all(a["key"] != key for a in call("/operator/alerts")[1])
+    finally:
+        ops._email_alert = real
+        control._write("DELETE FROM alerts WHERE key=?", key)
+    return "raised once, resolved"
+
+
+@test("Operations", "deep health check and metrics answer; metrics are closed to everyone but the operator")
+def _():
+    code, h = call("/health/deep", token=None)
+    assert code in (200, 503) and h["database"] == "ok" and "disk_free_gb" in h, h
+    assert set(call("/health", token=None)[1]) >= {"ok", "time"}
+    code, text = call("/metrics")
+    assert code == 200 and "jobbot_postings " in text and "jobbot_accounts " in text, text[:200]
+    assert call("/metrics", token=None)[0] == 401 and call("/metrics", token=NEW["token"])[0] == 403
+    return f"health {code}, {text.count('# TYPE')} metrics"
+
+
+@test("Operations", "the service log is one JSON object per line")
+def _():
+    from jobbot import ops
+    ops.event("zz-test event", account=0, note="test")
+    line = (DATA / "logs" / "service.jsonl").read_text(encoding="utf-8").strip().splitlines()[-1]
+    entry = json.loads(line)
+    assert entry["msg"] == "zz-test event" and entry["account"] == 0 and entry["level"] == "INFO"
+    return "ok"
+
+
+@test("Security", "mailbox passwords are stored encrypted and still work")
+def _():
+    from jobbot import mailer, secrets_box
+    sealed = secrets_box.seal("abcd efgh ijkl mnop")
+    assert sealed.startswith("enc:") and "abcd" not in sealed and secrets_box.open_(sealed) == "abcd efgh ijkl mnop"
+    assert secrets_box.open_("plain-old-value") == "plain-old-value" and secrets_box.seal(sealed) == sealed
+    theirs = lambda path, *a: call(path, *a, token=NEW["token"])
+    code, r = theirs("/portal/mailbox", "PUT", {"mailboxes": [{"email": "zz-test-box@example.org", "app_password": "abcdefghijklmnop"}]})
+    assert code == 200, r
+    raw = (NEW["home"] / ".env").read_text(encoding="utf-8")
+    assert "abcdefghijklmnop" not in raw and "SENDER_1_APP_PASSWORD=enc:" in raw, "the password is stored in plain text"
+    with use_home(NEW["home"]):
+        assert mailer.senders()[0]["password"] == "abcdefghijklmnop"
+    bad = theirs("/portal/mailbox", "PUT", {"mailboxes": [{"email": "zz-test-box@example.org", "app_password": "x",
+                                                           "smtp": "smtp.example.org\nANTHROPIC_API_KEY=stolen"}]})
+    assert bad[0] == 400 and "ANTHROPIC" not in (NEW["home"] / ".env").read_text(encoding="utf-8"), "a line could be injected"
+    return "encrypted at rest, injection refused"
+
+
+@test("Portal", "a new customer sets up for free, is locked until paying, and is unlocked by a test payment")
+def _():
+    code, reg = call("/register", "POST", {"name": "zz-test portal", "email": "zz-test-portal@example.org", "password": PASSWORD,
+                                           "market": "IN", "timezone": "Asia/Kolkata"}, token=None)
+    assert code in (200, 201), reg
+    me = lambda path, *a: call(path, *a, token=reg["token"])
+    assert me("/portal/bot/run", "POST")[0] == 402, "the bot ran on a free plan"
+    assert me("/portal/details", "PUT", {"full_name": "Zz Test", "city": "Pune"})[0] == 200, "set-up is not free"
+    resume = me("/portal/resume")[1]["content"] | {"name": "Zz Test"}
+    assert me("/portal/resume", "PUT", {"content": resume})[0] == 200
+    targets = me("/portal/targets")[1]
+    assert me("/portal/targets", "PUT", targets | {"titles": ["Data Analyst"]})[0] == 200
+    assert me("/portal/onboarding/complete", "POST")[0] == 200
+    locked = me("/portal/details", "PUT", {"full_name": "Changed"})
+    assert locked[0] == 402 and locked[1].get("payment_required"), "the profile could be changed after set-up without paying"
+    plan = next(p for p in me("/portal/billing")[1]["plans"] if p["price_month"] > 0)
+    out = me("/portal/checkout", "POST", {"plan": plan["name"]})
+    assert out[0] in (200, 201), out
+    pid = out[1]["payment"]["id"]
+    assert me(f"/portal/payments/{pid}/confirm", "POST", {"result": "fail"})[1].get("paid") is not True
+    assert me("/portal/details", "PUT", {"full_name": "Changed"})[0] == 402
+    out = me("/portal/checkout", "POST", {"plan": plan["name"]})
+    paid = me(f"/portal/payments/{out[1]['payment']['id']}/confirm", "POST", {"result": "success"})
+    assert paid[0] == 200, paid
+    assert me("/portal/details", "PUT", {"full_name": "Changed"})[0] == 200, "still locked after paying"
+    assert me("/portal/access")[1]["paid"] is True
+    t = me("/portal/tickets", "POST", {"kind": "support", "subject": "zz-test", "message": "help please"})
+    assert t[0] in (200, 201), t
+    return f"locked, failed payment kept it locked, paid {plan['name']} unlocked it"
 
 
 # ---------------------------------------------------------------- report

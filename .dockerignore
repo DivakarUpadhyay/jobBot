@@ -16,3 +16,4 @@ TEST-REPORT.md
 *.bat
 LOGINS.local.txt
 backup/
+.secret.key

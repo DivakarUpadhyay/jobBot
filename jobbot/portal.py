@@ -17,7 +17,7 @@ import re
 import zipfile
 
 from . import control as ct
-from . import db, home, profilestore, scheduler, sourcestore
+from . import db, home, profilestore, scheduler, secrets_box, sourcestore
 from .config import load_config, set_setting, setting_problem
 
 # Which sources belong to which kind of work, by the reader they use.
@@ -372,9 +372,14 @@ def mailbox_put(body, account):
         password = (b.get("app_password") or "").replace(" ", "") or (old.get(email) or {}).get("password", "")
         if not password:
             raise ValueError(f"an app password is needed for {email}")
-        lines += [f"SENDER_{n}={email}", f"SENDER_{n}_APP_PASSWORD={password}"]
-        if b.get("smtp") and b["smtp"] != "smtp.gmail.com":
-            lines.append(f"SENDER_{n}_SMTP={b['smtp'].strip()}")
+        if re.search(r"\s", password) or len(password) > 200:
+            raise ValueError(f"the app password for {email} is not valid")
+        smtp = (b.get("smtp") or "smtp.gmail.com").strip().lower()
+        if not re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+", smtp) or len(smtp) > 100:
+            raise ValueError(f"not a mail server name: {smtp}")
+        lines += [f"SENDER_{n}={email}", f"SENDER_{n}_APP_PASSWORD={secrets_box.seal(password)}"]   # encrypted at rest
+        if smtp != "smtp.gmail.com":
+            lines.append(f"SENDER_{n}_SMTP={smtp}")
     _env_path().write_text("\n".join(lines) + "\n", encoding="utf-8")
     emails = [(b.get("email") or "").strip().lower() for b in boxes]
     set_setting("sending.send_from", emails)

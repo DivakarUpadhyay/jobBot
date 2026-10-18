@@ -607,11 +607,8 @@ app.add_typer(loop_app, name="loop")
 
 
 def _loop_pid():
-    try:
-        pid = int(sq.LOOP_LOCK.read_text().strip())
-        return pid if sq.pid_alive(pid) else None
-    except (OSError, ValueError):
-        return None
+    pid = sq.holder(sq.LOOP_LOCK)
+    return pid if pid and pid > 0 else None
 
 
 @loop_app.command("status")
@@ -635,8 +632,6 @@ def loop_stop():
         console.print("The loop is not running.")
         return
     subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
-    sq.LOOP_LOCK.unlink(missing_ok=True)
-    sq.LOCK.unlink(missing_ok=True)
     con = db.connect()
     stuck = con.execute("SELECT id, to_email FROM jobs WHERE send_status='sending'").fetchall()
     console.print("Loop stopped.")

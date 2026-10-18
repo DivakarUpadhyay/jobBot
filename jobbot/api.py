@@ -64,7 +64,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from contextvars import ContextVar
 
-from . import access, control as ct, db, discover as dc, payments, portal, profilestore, report as rp, scheduler, sourcestore
+from . import access, control as ct, db, discover as dc, ops, payments, portal, profilestore, report as rp, scheduler, sourcestore
 from . import APP, use_home
 from .config import PROCESSES, enabled, load_config, overrides, reset_setting, set_setting, setting_problem, settings_list
 from .sources import ADAPTERS
@@ -118,10 +118,7 @@ def _live(con):
     """Is the bot running, what is it doing, and how much has each sending account sent today."""
     from . import mailer, sendqueue as sq
     cfg = load_config()
-    try:
-        running = sq.LOOP_LOCK.exists() and sq.pid_alive(int(sq.LOOP_LOCK.read_text().strip() or 0))
-    except (OSError, ValueError):
-        running = False
+    running = bool(sq.holder(sq.LOOP_LOCK))
     who = WHO.get()
     running = running or bool(who and ct._one("SELECT 1 FROM cycles WHERE account_id=? AND status='running'", who["account_id"]))
     step = con.execute("SELECT step, started_at FROM process_log WHERE finished_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
@@ -314,7 +311,7 @@ PAGES = {
     "admin": {"/": "admin-panel/index.html", "/admin": "admin-panel/index.html", "/console": "admin-panel/console.html"},
 }
 PAGES["all"] = {"/app": "customer-portal/index.html", "/admin": "admin-panel/index.html", "/console": "admin-panel/console.html"}
-CUSTOMER_ROUTES = ("/health", "/login", "/logout", "/me", "/plans", "/register", "/enquiries", "/portal/", "/schedules", "/docs", "/openapi.json")
+CUSTOMER_ROUTES = ("/health", "/health/deep", "/login", "/logout", "/me", "/plans", "/register", "/enquiries", "/portal/", "/schedules", "/docs", "/openapi.json")
 SITE = {"name": "all"}
 
 
@@ -332,7 +329,10 @@ def site_refuses(path):
 def public(method, path, client, forwarded, body):
     """Requests answered without signing in. Returns (http code, answer), or None for everything else."""
     if method == "GET" and path == "/health":
-        return 200, {"ok": True, "time": ct.now()}
+        return 200, ops.health()[1]
+    if method == "GET" and path == "/health/deep":   # for a load balancer or uptime monitor: 503 when something is wrong
+        ok, detail = ops.health(deep=True)
+        return (200 if ok else 503), detail
     if path == "/setup" and method in ("GET", "POST"):
         needed = ct.user_count() == 0
         if method == "GET":
@@ -601,6 +601,17 @@ def operator_route(who, method, path, q, body):
     if m and method == "PUT":
         t = portal.ticket_update(int(m.group(1)), body())
         return (200, t) if t else (404, {"error": "no such ticket"})
+    if path == "/operator/alerts" and method == "GET":
+        return 200, ops.open_alerts()
+    m = re.fullmatch(r"/operator/alerts/(\d+)/resolve", path)
+    if m and method == "POST":
+        return (200, {"resolved": True}) if ops.resolve_alert(int(m.group(1))) else (404, {"error": "no such open alert"})
+    if path == "/operator/backups" and method == "GET":
+        return 200, [{"file": f.name, "size_mb": round(f.stat().st_size / 1e6, 1)} for f in ops.backups()]
+    if path == "/operator/backups" and method == "POST":
+        return 201, ops.backup("operator")
+    if path == "/operator/health" and method == "GET":
+        return 200, ops.health(deep=True)[1]
     return None
 
 
@@ -618,6 +629,23 @@ class Exchange:
                 raise ValueError("the request body must be a JSON object")
         return self._read
 
+    def _metrics(self):
+        """Prometheus metrics: for JOBBOT_METRICS_TOKEN (a monitoring system) or a signed-in operator."""
+        import hmac
+        sent = self.headers.get("Authorization") or ""
+        token = sent[7:].strip() if sent.lower().startswith("bearer ") else ""
+        expected = ops.env("JOBBOT_METRICS_TOKEN")
+        if not (expected and token and hmac.compare_digest(token, expected)):
+            who = ct.authenticate(token or self.headers.get("X-API-Key"))
+            if not who:
+                self._send(401, {"error": "sign in first, or send the metrics token"})
+                return self._code, self._answer
+            if not who["operator"]:
+                self._send(403, {"error": "only the service operator may read the metrics"})
+                return self._code, self._answer
+        self._code, self._answer = 200, ops.metrics().encode()
+        return self._code, self._answer
+
     def run(self):
         """Every request goes through here: open routes, then who is asking, then whether they may, then
         the answer. Returns (http code, answer); the answer is bytes for the admin page, else JSON data."""
@@ -632,6 +660,8 @@ class Exchange:
             if refused:
                 self._send(404, {"error": refused})
                 return self._code, self._answer
+            if path == "/metrics" and method == "GET":
+                return self._metrics()
             answer = public(method, path, self.client, self.headers.get("X-Forwarded-For"), self._body)
             if answer:
                 self._send(*answer)
@@ -851,6 +881,8 @@ class Exchange:
 # Every route: method, path, what it does, section in /docs. A path not listed here does not exist.
 ROUTES = [
     ("GET", "/health", "Is the service up (open)", "Service"),
+    ("GET", "/health/deep", "Database, scheduler, disk and backups; 503 when something is wrong (open)", "Service"),
+    ("GET", "/metrics", "Prometheus metrics (operator, or the JOBBOT_METRICS_TOKEN)", "Service"),
     ("GET", "/", "The site's own page: the customer portal on the customer site, the admin panel on the admin site (open)", "Service"),
     ("GET", "/admin", "The admin panel for the service operator (open; it asks you to sign in)", "Service"),
     ("GET", "/app", "The customer portal: sign up, resume, targets, mailbox, bot on/off (open; it asks you to sign in)", "Service"),
@@ -898,6 +930,11 @@ ROUTES = [
     ("GET", "/operator/gateways", "Operator: payment gateways and the markets they serve", "Admin panel"),
     ("PUT", "/operator/gateways/{code}", "Operator: switch a gateway on or off, or change its markets", "Admin panel"),
     ("GET", "/operator/tickets", "Operator: support requests and feedback; filter with kind and status", "Admin panel"),
+    ("GET", "/operator/alerts", "Operator: open alerts (failed runs, bounces, backups, disk)", "Admin panel"),
+    ("POST", "/operator/alerts/{alert_id}/resolve", "Operator: mark an alert as dealt with", "Admin panel"),
+    ("GET", "/operator/backups", "Operator: the kept database backups", "Admin panel"),
+    ("POST", "/operator/backups", "Operator: make a backup now", "Admin panel"),
+    ("GET", "/operator/health", "Operator: the full health check", "Admin panel"),
     ("PUT", "/operator/tickets/{ticket_id}", "Operator: reply to a ticket or set its status {reply, status}", "Admin panel"),
     ("PUT", "/operator/accounts/{account_id}", "Operator: change a customer's plan or status {plan, status}", "Admin panel"),
     ("GET", "/operator/plans", "Operator: every plan, hidden ones too", "Admin panel"),
@@ -964,7 +1001,7 @@ ROUTES = [
     ("GET", "/profile/{name}", "One document: resume, email-templates or resume-template", "Settings"),
     ("PUT", "/profile/{name}", "Save a new version of a document", "Settings"),
 ]
-OPEN = {("GET", "/health"), ("GET", "/"), ("GET", "/admin"), ("GET", "/app"), ("GET", "/console"), ("GET", "/setup"), ("POST", "/setup"),
+OPEN = {("GET", "/health"), ("GET", "/health/deep"), ("GET", "/metrics"), ("GET", "/"), ("GET", "/admin"), ("GET", "/app"), ("GET", "/console"), ("GET", "/setup"), ("POST", "/setup"),
         ("POST", "/login"), ("GET", "/plans"), ("POST", "/register"), ("POST", "/enquiries")}
 MAX_BODY = 1_500_000   # bytes; the largest request is a resume upload (700 KB file, sent as base64)
 
@@ -1008,7 +1045,8 @@ def create_app():
         exchange = Exchange(request.method, target, request.headers, request.client.host if request.client else "", raw)
         code, body = await run_in_threadpool(exchange.run)   # database and web reads block, so not on the event loop
         if isinstance(body, bytes):
-            return Response(body, status_code=code, media_type="text/html; charset=utf-8")
+            kind = "text/plain; version=0.0.4" if request.url.path == "/metrics" else "text/html; charset=utf-8"
+            return Response(body, status_code=code, media_type=kind)
         return Response(json.dumps(body, ensure_ascii=False, default=str), status_code=code,
                         media_type="application/json; charset=utf-8")
 

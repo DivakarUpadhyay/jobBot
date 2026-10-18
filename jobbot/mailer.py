@@ -17,7 +17,7 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
-from . import home
+from . import home, secrets_box
 
 
 def cc_for(sender_email, cfg):
@@ -38,7 +38,7 @@ def senders():
         if key.startswith("SENDER_") and key[7:].isdigit() and email:
             n = key[7:]
             out.append({"n": int(n), "email": email.strip(),
-                        "password": (env.get(f"SENDER_{n}_APP_PASSWORD") or "").replace(" ", ""),
+                        "password": secrets_box.open_(env.get(f"SENDER_{n}_APP_PASSWORD") or "").replace(" ", ""),
                         "smtp": env.get(f"SENDER_{n}_SMTP") or "smtp.gmail.com"})
     return sorted(out, key=lambda s: s["n"])
 

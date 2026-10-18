@@ -320,26 +320,101 @@ def bounce_stop(con, sender_email, cfg):
 
 
 LOCK = HomePath("send.lock")
+LOOP_LOCK = HomePath("loop.lock")
+_LOCK_BYTE = 1 << 20   # Windows locks a byte range: lock one far past the process number, so the number stays readable
 
 
-class SendLock:
-    """Only one send may run at a time (a scheduled cycle and a manual run must not overlap)."""
+def _try_lock(f):
+    try:
+        if os.name == "nt":
+            import msvcrt
+            f.seek(_LOCK_BYTE)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except OSError:
+        return False
+
+
+def _unlock(f):
+    try:
+        if os.name == "nt":
+            import msvcrt
+            f.seek(_LOCK_BYTE)
+            msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    except OSError:
+        pass
+
+
+def holder(path):
+    """The process number holding the lock file, or None when nobody holds it. The operating system keeps the
+    lock and drops it when the holding process ends however it ends, so a killed process never leaves a lock
+    behind and a reused process number is never mistaken for a running bot."""
+    path = Path(os.fspath(path))
+    try:
+        f = open(path, "r+")
+    except OSError:
+        return None
+    with f:
+        if _try_lock(f):
+            _unlock(f)
+            return None
+        f.seek(0)
+        try:
+            return int(f.read(32).strip() or 0) or -1
+        except ValueError:
+            return -1
+
+
+class _FileLock:
+    message = "Already running (process {pid})."
+
+    def __init__(self, path):
+        self.path, self._f = path, None
 
     def __enter__(self):
-        import os
-        if LOCK.exists() and time.time() - LOCK.stat().st_mtime < 3 * 3600:
-            try:
-                owner = int(LOCK.read_text().strip() or 0)
-            except ValueError:
-                owner = 0
-            # a lock left by a send that was killed must not block sending for hours
-            if owner and owner != os.getpid() and pid_alive(owner):
-                raise RuntimeError("Another send is already running. Nothing sent by this run.")
-        LOCK.write_text(str(os.getpid()))
+        path = Path(os.fspath(self.path))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        f = open(path, "a+")
+        if not _try_lock(f):
+            f.close()
+            raise RuntimeError(self.message.format(pid=holder(path) or "?"))
+        f.seek(0)
+        f.truncate()
+        f.write(str(os.getpid()))
+        f.flush()
+        self._f = f
         return self
 
     def __exit__(self, *exc):
-        LOCK.unlink(missing_ok=True)
+        if self._f:
+            self._f.seek(0)
+            self._f.truncate()
+            _unlock(self._f)
+            self._f.close()
+            self._f = None
+
+
+class SendLock(_FileLock):
+    """Only one send may run at a time (a scheduled cycle and a manual run must not overlap)."""
+    message = "Another send is already running (process {pid}). Nothing sent by this run."
+
+    def __init__(self):
+        super().__init__(LOCK)
+
+
+class LoopLock(_FileLock):
+    """Only one repeating loop at a time (the scheduled task and a manual start must not both run)."""
+    message = ("The loop is already running (process {pid}). Stop that one first, or use "
+               "`jobbot cycle` without --loop for a single run.")
+
+    def __init__(self):
+        super().__init__(LOOP_LOCK)
 
 
 def pid_alive(pid):
@@ -359,26 +434,3 @@ def pid_alive(pid):
     ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
     ctypes.windll.kernel32.CloseHandle(handle)
     return code.value == 259   # STILL_ACTIVE
-
-
-LOOP_LOCK = HomePath("loop.lock")
-
-
-class LoopLock:
-    """Only one repeating loop at a time (the scheduled task and a manual start must not both run)."""
-
-    def __enter__(self):
-        import os
-        if LOOP_LOCK.exists():
-            try:
-                other = int(LOOP_LOCK.read_text().strip())
-            except ValueError:
-                other = 0
-            if other and other != os.getpid() and pid_alive(other):
-                raise RuntimeError(f"The loop is already running (process {other}). Stop that one first, or use "
-                                   f"`jobbot cycle` without --loop for a single run.")
-        LOOP_LOCK.write_text(str(os.getpid()))
-        return self
-
-    def __exit__(self, *exc):
-        LOOP_LOCK.unlink(missing_ok=True)

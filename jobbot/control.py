@@ -130,6 +130,16 @@ STEPS = [
          status TEXT NOT NULL DEFAULT 'open',   -- open | in progress | answered | closed
          reply TEXT, replied_at TEXT, created_at TEXT NOT NULL, updated_at TEXT);
        CREATE INDEX ix_tickets_status ON tickets(status, created_at)""",
+    # Operations: alerts for the operator (ops.py), and the shared do-not-contact list every account obeys.
+    """CREATE TABLE alerts(
+         id INTEGER PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL, account_id INTEGER,
+         message TEXT NOT NULL, key TEXT UNIQUE,  -- one alert per key, so a problem is reported once
+         emailed_at TEXT, resolved_at TEXT);
+       CREATE INDEX ix_alerts_open ON alerts(resolved_at, at);
+       CREATE TABLE suppressions(
+         address TEXT PRIMARY KEY,              -- an email address, or @domain for a whole domain, lower case
+         reason TEXT NOT NULL,                  -- unsubscribed | bounced | complaint | manual
+         account_id INTEGER, added_at TEXT NOT NULL, note TEXT)""",
 ]
 
 

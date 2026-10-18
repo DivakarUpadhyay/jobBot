@@ -19,3 +19,4 @@ tests/.data/
 **/__pycache__/
 *.pyc
 .venv/
+.secret.key

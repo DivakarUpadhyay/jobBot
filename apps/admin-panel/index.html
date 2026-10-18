@@ -104,6 +104,18 @@ td select,td input{padding:5px 7px;width:auto}
       <div class="grid"><div class="card"><h3>Bot console</h3><p class="small muted">Sources, steps, settings and runs of your own account.</p><a class="btn" href="/console">Open console</a></div>
         <div class="card"><h3>API reference</h3><p class="small muted">Every REST route, with sign-in, to try live.</p><a class="btn" href="/docs">Open /docs</a></div>
         <div class="card"><h3>Customer portal</h3><p class="small muted">What customers see: landing, sign-up, dashboard.</p><a class="btn" href="/app" data-customer-link target="_blank" rel="noopener">Open portal</a></div></div>
+      <h3 style="margin-top:20px">Health</h3>
+      <div class="card" id="healthBox"></div>
+      <h3 style="margin-top:20px">Alerts</h3>
+      <div class="card" id="alertList"></div>
+      <h3 style="margin-top:20px">Backups</h3>
+      <div class="card"><div class="row"><button class="btn primary" onclick="backupNow()" id="bkBtn">Make a backup now</button>
+        <span class="small muted">A checked, compressed copy is made every day automatically; restore with <code>jobbot backup restore</code>.</span></div>
+        <div id="bkMsg"></div><div id="backupList" class="small" style="margin-top:10px"></div></div>
+      <h3 style="margin-top:20px">Do-not-contact list (every account)</h3>
+      <div class="card"><div class="row"><input id="supAddr" placeholder="name@company.com or @company.com" style="max-width:300px">
+        <select id="supReason" style="width:auto"><option>manual</option><option>unsubscribed</option><option>complaint</option><option>bounced</option></select>
+        <button class="btn" onclick="addSup()">Add</button></div><div id="supMsg"></div><div id="supList" class="small" style="margin-top:10px"></div></div>
     </section>
   </main>
 </div>
@@ -149,7 +161,7 @@ document.querySelectorAll(".nav").forEach(n => n.onclick = () => go(n.dataset.ta
 function go(tab) {
   document.querySelectorAll(".nav").forEach(n => n.classList.toggle("on", n.dataset.tab === tab));
   document.querySelectorAll("[data-page]").forEach(p => p.classList.toggle("hidden", p.dataset.page !== tab));
-  ({overview: loadOverview, customers: loadOverview, enquiries: loadEnquiries, plans: loadPlans, tickets: loadTickets, payments: loadPayments})[tab]?.();
+  ({overview: loadOverview, customers: loadOverview, enquiries: loadEnquiries, plans: loadPlans, tickets: loadTickets, payments: loadPayments, system: loadSystem})[tab]?.();
 }
 async function start() {
   try { const me = await api("GET", "/me"); if (!me.user.operator) { signOut(); return note("signMsg", "Operators only.", false); } $("who").textContent = me.user.email; }
@@ -210,6 +222,34 @@ async function loadPlans() {
   $("marketList").innerHTML = marketList.map(m => `<div class="row" style="justify-content:space-between;padding:4px 0"><span>${esc(m.code)} · ${esc(m.name)} · ${esc(m.currency)}</span>${m.live ? '<span class="pill ok">live</span>' : '<span class="pill">planned</span>'}</div>`).join("");
   $("npMarket").innerHTML = marketList.map(m => `<option value="${esc(m.code)}">${esc(m.name)}</option>`).join("");
 }
+async function loadSystem() {
+  try {
+    const h = await api("GET", "/operator/health");
+    $("healthBox").innerHTML = `<p><span class="pill ${h.ok ? "ok" : "bad"}">${h.ok ? "healthy" : "problem: " + esc((h.problems || []).join(", "))}</span></p>
+      <p class="small">Database: ${esc(h.database)} · Scheduler last tick: ${h.scheduler_last_tick_s == null ? "not running in this process" : esc(h.scheduler_last_tick_s) + " s ago"}
+      · Free disk: ${esc(h.disk_free_gb)} GB · Newest backup: ${esc(h.last_backup || "none yet")} · Open alerts: ${esc(h.open_alerts)}</p>`;
+  } catch (e) { $("healthBox").textContent = e.message; }
+  const alerts = await api("GET", "/operator/alerts");
+  $("alertList").innerHTML = alerts.length ? alerts.map(a => `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)">
+      <span><span class="pill warn">${esc(a.kind)}</span> ${esc(a.message)} <span class="small muted">${esc((a.at || "").replace("T", " ").slice(0, 16))}</span></span>
+      <button class="btn sm" onclick="resolveAlert(${a.id})">Dealt with</button></div>`).join("") : `<p class="muted">No open alerts.</p>`;
+  const bk = await api("GET", "/operator/backups");
+  $("backupList").innerHTML = bk.length ? bk.map(b => `<div>${esc(b.file)} · ${esc(b.size_mb)} MB</div>`).join("") : `<p class="muted">No backups yet.</p>`;
+  const sup = await api("GET", "/operator/suppressions?limit=200");
+  $("supList").innerHTML = sup.length ? sup.map(x => `<div class="row between"><span>${esc(x.address)} <span class="muted">· ${esc(x.reason)}${x.account_id ? " · account " + esc(x.account_id) : " · everyone"}</span></span>
+      <button class="btn sm" onclick="removeSup('${esc(x.address)}')">Remove</button></div>`).join("") : `<p class="muted">The list is empty.</p>`;
+}
+async function resolveAlert(id) { try { await api("POST", `/operator/alerts/${id}/resolve`); loadSystem(); } catch (e) { alert(e.message); } }
+async function backupNow() {
+  $("bkBtn").disabled = true; note("bkMsg", "Making a backup (about half a minute)…");
+  try { const b = await api("POST", "/operator/backups"); note("bkMsg", `Backup made: ${b.size_mb} MB in ${b.seconds} s.`); loadSystem(); }
+  catch (e) { note("bkMsg", e.message, false); } finally { $("bkBtn").disabled = false; }
+}
+async function addSup() {
+  try { await api("POST", "/operator/suppressions", {address: $("supAddr").value.trim(), reason: $("supReason").value}); $("supAddr").value = ""; loadSystem(); }
+  catch (e) { note("supMsg", e.message, false); }
+}
+async function removeSup(a) { try { await api("DELETE", "/operator/suppressions/" + encodeURIComponent(a)); loadSystem(); } catch (e) { note("supMsg", e.message, false); } }
 async function loadTickets() {
   const q = new URLSearchParams(); if ($("tkKind").value) q.set("kind", $("tkKind").value); if ($("tkStatus").value) q.set("status", $("tkStatus").value);
   const rows = await api("GET", "/operator/tickets?" + q);

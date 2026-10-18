@@ -187,7 +187,7 @@ details summary{cursor:pointer;color:var(--brand);font-size:13px;font-weight:600
       <label>Full name</label><input name="name" required autocomplete="name" maxlength="100">
       <label>Email</label><input name="email" type="email" required autocomplete="email">
       <label>Password (10 characters or more)</label><input name="password" type="password" minlength="10" required autocomplete="new-password">
-      <label class="toggle" style="margin-top:14px;font-weight:500"><input type="checkbox" required id="regTerms"><span class="small">I agree that JobPilot may process my resume to find and apply for jobs on my behalf, only as I set up.</span></label>
+      <label class="toggle" style="margin-top:14px;font-weight:500"><input type="checkbox" required id="regTerms" name="accept_terms"><span class="small">I accept the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and agree that JobPilot may process my resume to find and apply for jobs on my behalf, only as I set up.</span></label>
       <div style="margin-top:16px"><button class="btn primary lg" style="width:100%">Create account</button></div>
     </form>
     <div id="regMsg"></div>
@@ -205,7 +205,7 @@ details summary{cursor:pointer;color:var(--brand);font-size:13px;font-weight:600
     <p class="small muted center" style="margin-top:14px">New here? <a href="#" onclick="show('register');return false">Create an account</a></p>
   </div></div>
 
-  <footer class="site"><div class="in"><div><b>JobPilot</b> · multi job application system</div><div class="row"><a href="#about" onclick="show('home')">About</a><a href="#plans" onclick="show('home')">Plans</a><a href="#contact" onclick="show('home')">Contact</a></div></div></footer>
+  <footer class="site"><div class="in"><div><b>JobPilot</b> · multi job application system</div><div class="row"><a href="#about" onclick="show('home')">About</a><a href="#plans" onclick="show('home')">Plans</a><a href="#contact" onclick="show('home')">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div></div></footer>
 </div>
 
 <!-- ================= first-time set-up ================= -->

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobPilot Privacy Policy</title>
+<style>
+:root{--bg:#f7f8fa;--ink:#141b26;--muted:#5d6878;--line:#e2e6ed;--warnbg:#fff4e0;--warn:#7a4500;--brand:#7c3aed}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0d1118;--ink:#eef1f6;--muted:#97a3b4;--line:#263041;--warnbg:#3a2a12;--warn:#ffc266;--brand:#a78bfa}}
+:root[data-theme="dark"]{--bg:#0d1118;--ink:#eef1f6;--muted:#97a3b4;--line:#263041;--warnbg:#3a2a12;--warn:#ffc266;--brand:#a78bfa}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:46rem;margin:0 auto;padding:32px 16px 64px} h1{font-size:1.8rem;margin:0 0 4px} h2{font-size:1.15rem;margin:28px 0 6px}
+.muted{color:var(--muted)} .draft{background:var(--warnbg);color:var(--warn);padding:12px 14px;border-radius:10px;margin:16px 0}
+a{color:var(--brand)} li{margin:4px 0}
+table{border-collapse:collapse;width:100%;font-size:.95rem} td,th{border-top:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+<p><a href="/app">← JobPilot</a></p>
+<h1>Privacy Policy</h1>
+<p class="muted">Version {{TERMS_VERSION}} · {{COMPANY}}</p>
+<div class="draft"><b>Draft.</b> This policy has not yet been reviewed by a lawyer. It is written to meet India's Digital Personal Data Protection Act 2023 and the EU/UK GDPR, and must be reviewed before JobPilot charges real customers.</div>
+
+<h2>Who is responsible</h2>
+<p>{{COMPANY}}, {{ADDRESS}}, decides how your personal data is used (the "data fiduciary" or "controller"). Questions, requests and complaints: <a href="mailto:{{PRIVACY_EMAIL}}">{{PRIVACY_EMAIL}}</a>. Grievance officer: {{GRIEVANCE_OFFICER}}.</p>
+
+<h2>What we keep, and why</h2>
+<div class="wrap"><table>
+<tr><th>Data</th><th>Why</th><th>Basis</th></tr>
+<tr><td>Name, email, password (stored only as a salted hash), country, time zone</td><td>Your account and sign-in</td><td>Contract</td></tr>
+<tr><td>Resume, cover letter, profile details, the jobs and places you want</td><td>To find matching jobs and write each application</td><td>Contract; your consent at sign-up</td></tr>
+<tr><td>Mailbox address, and either an app password or a sign-in token from Google or Microsoft, stored encrypted</td><td>To send applications from your own address and read replies and bounces to them</td><td>Contract; your consent when you connect the mailbox</td></tr>
+<tr><td>The applications prepared and sent, with replies and bounces</td><td>To show you what was sent and never send twice</td><td>Contract</td></tr>
+<tr><td>Payments (plan, amount, date, the provider's reference)</td><td>Billing and tax records</td><td>Legal obligation</td></tr>
+<tr><td>Support requests and feedback</td><td>To help you</td><td>Contract; legitimate interest</td></tr>
+<tr><td>Sign-in and change records (time, action, result)</td><td>Security and to fix problems</td><td>Legitimate interest</td></tr>
+</table></div>
+<p>We do not sell your data and do not use it for advertising.</p>
+
+<h2>Who else handles it</h2>
+<ul>
+<li><b>AI providers</b> ({{AI_PROVIDERS}}): your resume, cover letter and the job description are sent to them to tailor each application and check that a job fits you. They process it on our instructions.</li>
+<li><b>Your mail provider</b> (for example Google or Microsoft): applications are sent through your own mailbox.</li>
+<li><b>Payment providers</b> (for example Razorpay or Stripe): they take the payment. We never receive card details.</li>
+<li><b>Hosting</b>: {{HOSTING}}, where the service and its backups run.</li>
+<li><b>Employers</b>: each application you send goes to the employer's address, with your resume attached.</li>
+</ul>
+<p>Some of these providers process data outside your country. Where the law requires, we rely on safeguards such as standard contractual clauses.</p>
+
+<h2>How long we keep it</h2>
+<ul>
+<li>Account, resume and applications: while your account is open. When you delete your account they are removed at once from the live service, and from backups within {{BACKUP_DAYS}} days as old backups are replaced.</li>
+<li>Payment records: kept for the period tax law requires (in India, 8 years), without your name or email once the account is deleted.</li>
+</ul>
+
+<h2>Your rights</h2>
+<ul>
+<li><b>See and take your data:</b> Plan and billing → Download my data gives you everything we keep, as one file.</li>
+<li><b>Correct it:</b> edit your profile, resume and cover letter in the portal at any time.</li>
+<li><b>Delete it:</b> Plan and billing → Delete my account.</li>
+<li><b>Withdraw consent:</b> disconnect your mailbox, switch the bot off, or delete your account. For a mailbox connected by signing in, you can also remove our access in your Google or Microsoft account.</li>
+<li><b>Complain:</b> to us first; you may also complain to the Data Protection Board of India, or to your local data protection authority if you live in the EU or UK.</li>
+</ul>
+<p>Using these rights is always free.</p>
+
+<h2>Security</h2>
+<p>Passwords are stored as salted hashes; mailbox passwords and sign-in tokens are encrypted. Traffic is encrypted (HTTPS). Each account sees only its own data. Backups are made daily and checked. If a breach puts your data at risk, we will tell you and the authorities as the law requires.</p>
+
+<h2>Cookies and storage</h2>
+<p>We use no tracking or advertising cookies. Your browser keeps your sign-in token in its local storage until you sign out.</p>
+
+<h2>People who receive applications</h2>
+<p>If you received an application sent through JobPilot and do not want to hear from our users again, reply with "remove me" or write to <a href="mailto:{{PRIVACY_EMAIL}}">{{PRIVACY_EMAIL}}</a>. Your address goes on a do-not-contact list that every account obeys.</p>
+
+<h2>Children</h2>
+<p>JobPilot is for people aged 18 and over.</p>
+
+<h2>Changes</h2>
+<p>We will tell you by email or in the portal before a change to this policy takes effect.</p>
+<p class="muted" style="margin-top:32px">See also the <a href="/terms">Terms of Service</a>.</p>
+</main>
+</body>
+</html>

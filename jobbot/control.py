@@ -140,6 +140,9 @@ STEPS = [
          address TEXT PRIMARY KEY,              -- an email address, or @domain for a whole domain, lower case
          reason TEXT NOT NULL,                  -- unsubscribed | bounced | complaint | manual
          account_id INTEGER, added_at TEXT NOT NULL, note TEXT)""",
+    # Which version of the terms and privacy policy a customer accepted at sign-up, and when.
+    """ALTER TABLE accounts ADD COLUMN terms_version TEXT;
+       ALTER TABLE accounts ADD COLUMN terms_accepted_at TEXT""",
 ]
 
 

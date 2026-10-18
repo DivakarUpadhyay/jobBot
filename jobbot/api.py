@@ -307,10 +307,30 @@ def processes(con):
 # Each answers only its own routes, so a customer's browser can never reach the operator's API and the other way
 # round. `--site all` (the default) still serves both from one process, for the container in deploy/.
 PAGES = {
-    "customer": {"/": "customer-portal/index.html", "/app": "customer-portal/index.html"},
+    "customer": {"/": "customer-portal/index.html", "/app": "customer-portal/index.html", "/terms": "customer-portal/terms.html",
+                 "/privacy": "customer-portal/privacy.html"},
     "admin": {"/": "admin-panel/index.html", "/admin": "admin-panel/index.html", "/console": "admin-panel/console.html"},
 }
-PAGES["all"] = {"/app": "customer-portal/index.html", "/admin": "admin-panel/index.html", "/console": "admin-panel/console.html"}
+PAGES["all"] = {"/app": "customer-portal/index.html", "/admin": "admin-panel/index.html", "/console": "admin-panel/console.html",
+                "/terms": "customer-portal/terms.html", "/privacy": "customer-portal/privacy.html"}
+TERMS_VERSION = "2026-10-18"
+# The operator's details in the legal pages, from DATA/.env; until they are set the page shows what is missing.
+LEGAL = {"COMPANY": "JOBBOT_COMPANY_NAME", "ADDRESS": "JOBBOT_COMPANY_ADDRESS", "SUPPORT_EMAIL": "JOBBOT_SUPPORT_EMAIL",
+         "PRIVACY_EMAIL": "JOBBOT_PRIVACY_EMAIL", "GRIEVANCE_OFFICER": "JOBBOT_GRIEVANCE_OFFICER", "JURISDICTION": "JOBBOT_JURISDICTION",
+         "COURTS": "JOBBOT_COURTS", "REFUND_POLICY": "JOBBOT_REFUND_POLICY", "HOSTING": "JOBBOT_HOSTING",
+         "AI_PROVIDERS": "JOBBOT_AI_PROVIDERS", "BACKUP_DAYS": "JOBBOT_BACKUP_KEEP"}
+LEGAL_DEFAULTS = {"AI_PROVIDERS": "Google (Gemini) and Anthropic (Claude)", "BACKUP_DAYS": "35", "JURISDICTION": "India"}
+
+
+def legal_page(raw):
+    import html
+    text = raw.decode("utf-8").replace("{{TERMS_VERSION}}", TERMS_VERSION)
+    for key, name in LEGAL.items():
+        value = ops.env(name) or LEGAL_DEFAULTS.get(key) or f"[{name} not set yet]"
+        if key == "BACKUP_DAYS" and value.isdigit():
+            value = str(int(value) + 28)   # daily backups plus four weekly ones
+        text = text.replace("{{" + key + "}}", html.escape(value))
+    return text.encode("utf-8")
 CUSTOMER_ROUTES = ("/health", "/health/deep", "/oauth/callback", "/payments/return", "/webhooks/razorpay", "/webhooks/stripe", "/login", "/logout", "/me", "/plans", "/register", "/enquiries", "/portal/", "/schedules", "/docs", "/openapi.json")
 SITE = {"name": "all"}
 
@@ -757,6 +777,8 @@ class Exchange:
             pages = PAGES[SITE["name"]]
             if method == "GET" and path in pages:   # the pages are open; each asks for sign-in itself
                 self._code, self._answer = 200, (APP / "apps" / pages[path]).read_bytes()
+                if path in ("/terms", "/privacy"):
+                    self._answer = legal_page(self._answer)
                 return self._code, self._answer
             refused = site_refuses(path)
             if refused:
@@ -989,6 +1011,8 @@ class Exchange:
 # Every route: method, path, what it does, section in /docs. A path not listed here does not exist.
 ROUTES = [
     ("GET", "/health", "Is the service up (open)", "Service"),
+    ("GET", "/terms", "Terms of Service page (open)", "Service"),
+    ("GET", "/privacy", "Privacy Policy page (open)", "Service"),
     ("GET", "/health/deep", "Database, scheduler, disk and backups; 503 when something is wrong (open)", "Service"),
     ("GET", "/metrics", "Prometheus metrics (operator, or the JOBBOT_METRICS_TOKEN)", "Service"),
     ("GET", "/", "The site's own page: the customer portal on the customer site, the admin panel on the admin site (open)", "Service"),
@@ -1124,7 +1148,7 @@ ROUTES = [
     ("GET", "/profile/{name}", "One document: resume, email-templates or resume-template", "Settings"),
     ("PUT", "/profile/{name}", "Save a new version of a document", "Settings"),
 ]
-OPEN = {("GET", "/oauth/callback"), ("GET", "/payments/return"), ("POST", "/webhooks/razorpay"), ("POST", "/webhooks/stripe"), ("GET", "/health"), ("GET", "/health/deep"), ("GET", "/metrics"), ("GET", "/"), ("GET", "/admin"), ("GET", "/app"), ("GET", "/console"), ("GET", "/setup"), ("POST", "/setup"),
+OPEN = {("GET", "/terms"), ("GET", "/privacy"), ("GET", "/oauth/callback"), ("GET", "/payments/return"), ("POST", "/webhooks/razorpay"), ("POST", "/webhooks/stripe"), ("GET", "/health"), ("GET", "/health/deep"), ("GET", "/metrics"), ("GET", "/"), ("GET", "/admin"), ("GET", "/app"), ("GET", "/console"), ("GET", "/setup"), ("POST", "/setup"),
         ("POST", "/login"), ("GET", "/plans"), ("POST", "/register"), ("POST", "/enquiries")}
 MAX_BODY = 1_500_000   # bytes; the largest request is a resume upload (700 KB file, sent as base64)
 

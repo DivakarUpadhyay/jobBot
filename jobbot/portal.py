@@ -89,6 +89,8 @@ def register(body, client):
         or ("an account with that email already exists; sign in instead" if ct._one("SELECT 1 FROM users WHERE email=?", email) else None)
     if problem:
         raise ValueError(problem)
+    if body.get("accept_terms") not in (True, "on", "true", 1):
+        raise ValueError("please accept the Terms of Service and the Privacy Policy")
     known = {m["code"]: m for m in markets()}
     market = (body.get("market") or "IN").upper()
     if market not in known:
@@ -102,7 +104,9 @@ def register(body, client):
     except Exception:
         acc = ct.account_create(name, "UTC")
     # The free plan sets up the profile only; the bot runs after a payment (access.py), so there is no trial end date.
-    ct._write("UPDATE accounts SET plan=?, market=?, trial_ends_at=NULL, contact_email=? WHERE id=?", trial, market, email, acc["id"])
+    from .api import TERMS_VERSION
+    ct._write("UPDATE accounts SET plan=?, market=?, trial_ends_at=NULL, contact_email=?, terms_version=?, terms_accepted_at=? WHERE id=?",
+              trial, market, email, TERMS_VERSION, ct.now(), acc["id"])
     user = ct.user_create(acc["id"], email, body["password"], "owner", name)
     with ct._failures_lock:   # count sign-ups per address, so one client cannot create accounts by the hundred
         ct._failures.setdefault(("register", client), []).append(dt.datetime.now().timestamp())

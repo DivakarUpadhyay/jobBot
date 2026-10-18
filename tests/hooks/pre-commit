@@ -1,0 +1,16 @@
+#!/bin/sh
+# Runs the quick tests (nothing that needs the internet, a mailbox, Chrome or AI) on a copy of the data
+# before every commit. Installed by: git config core.hooksPath tests/hooks
+cd "$(git rev-parse --show-toplevel)" || exit 1
+PY=python
+[ -x .venv/Scripts/python.exe ] && PY=.venv/Scripts/python.exe
+[ -x .venv/bin/python ] && PY=.venv/bin/python
+echo "pre-commit: quick tests (about 2 minutes)..."
+PYTHONIOENCODING=utf-8 "$PY" tests/run_all.py --offline > tests/.last-quick-run.log 2>&1
+status=$?
+tail -1 tests/.last-quick-run.log
+if [ $status -ne 0 ]; then
+  grep '^FAIL' tests/.last-quick-run.log
+  echo "pre-commit: tests failed; commit stopped. Full output: tests/.last-quick-run.log"
+fi
+exit $status

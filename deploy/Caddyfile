@@ -1,6 +1,18 @@
-# Caddy gets and renews the HTTPS certificate for {$DOMAIN} by itself (Let's Encrypt).
-{$DOMAIN} {
+# Caddy gets and renews the HTTPS certificates by itself (Let's Encrypt).
+# Customers use {$DOMAIN}; the operator uses {$ADMIN_DOMAIN}. /metrics is never served to the internet.
+(common) {
 	encode gzip
-	header Strict-Transport-Security "max-age=31536000"
-	reverse_proxy app:8765
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	@metrics path /metrics
+	respond @metrics 404
+}
+
+{$DOMAIN} {
+	import common
+	reverse_proxy customer:8765
+}
+
+{$ADMIN_DOMAIN} {
+	import common
+	reverse_proxy admin:8766
 }

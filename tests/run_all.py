@@ -56,12 +56,19 @@ from jobbot.sources import ADAPTERS, generic  # noqa: E402
 from jobbot.sources.base import Job  # noqa: E402
 
 RESULTS = []
-ONLY = {a.lower() for a in sys.argv[1:]}
+OFFLINE = "--offline" in sys.argv   # quick run before each commit: nothing that needs the internet, a mailbox, Chrome or AI
+ONLY = {a.lower() for a in sys.argv[1:] if not a.startswith("--")}
+NEEDS_NETWORK = ("live read", "generic reader recognises", "without a mail server", "PDF is created in Chrome", "AI writes",
+                 "both Gmail accounts", "a real email", "inbox check", "Chrome (Playwright)", "interview prep exists",
+                 "generated directly from the tender feed", "the last full iteration", "a backup is made")   # + slow
 
 
 def test(area, name):
     def wrap(fn):
         if ONLY and area.lower() not in ONLY:
+            return fn
+        if OFFLINE and (area == "Email" and "refused" not in name and "layout" not in name or any(n in name for n in NEEDS_NETWORK)):
+            RESULTS.append((area, name, "SKIP", "SKIP offline run", 0))
             return fn
         start = time.time()
         try:
@@ -1721,7 +1728,7 @@ def _():
 @test("Portal", "a customer can download all their data and delete their account")
 def _():
     code, reg = call("/register", "POST", {"name": "zz-test delete me", "email": "zz-test-delete@example.org", "password": PASSWORD,
-                                           "market": "IN"}, token=None)
+                                           "market": "IN", "accept_terms": True}, token=None)
     assert code in (200, 201), reg
     me = lambda path, *a: call(path, *a, token=reg["token"])
     me("/portal/details", "PUT", {"full_name": "Zz Delete", "city": "Pune"})
@@ -1745,7 +1752,14 @@ def _():
 def _():
     code, reg = call("/register", "POST", {"name": "zz-test portal", "email": "zz-test-portal@example.org", "password": PASSWORD,
                                            "market": "IN", "timezone": "Asia/Kolkata"}, token=None)
+    assert code == 400 and "Terms" in reg["error"], "an account was made without accepting the terms"
+    code, reg = call("/register", "POST", {"name": "zz-test portal", "email": "zz-test-portal@example.org", "password": PASSWORD,
+                                           "market": "IN", "timezone": "Asia/Kolkata", "accept_terms": True}, token=None)
     assert code in (200, 201), reg
+    assert control._one("SELECT terms_version FROM accounts WHERE id=?", reg["account"]["id"])["terms_version"] == api.TERMS_VERSION
+    for page in ("/terms", "/privacy"):
+        code, text = call(page, token=None)
+        assert code == 200 and "{{" not in text and "Draft" in text, page
     me = lambda path, *a: call(path, *a, token=reg["token"])
     assert me("/portal/bot/run", "POST")[0] == 402, "the bot ran on a free plan"
     assert me("/portal/details", "PUT", {"full_name": "Zz Test", "city": "Pune"})[0] == 200, "set-up is not free"
@@ -1783,7 +1797,8 @@ lines = ["# Job Bot Feature Test Report", "", f"Run: {db.now().replace('T', ' ')
 for n, (area, name, state, detail, secs) in enumerate(RESULTS, 1):
     lines.append(f"| {n} | {area} | {name} | {state} | {detail.replace('|', '/')} |")
 if not ONLY:
-    (ROOT / "TEST-REPORT.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if not OFFLINE:
+        (ROOT / "TEST-REPORT.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 print(f"\n{counts['PASS']} passed, {counts['FAIL']} failed, {counts['SKIP']} skipped."
       + ("" if ONLY else f" Report: {ROOT / 'TEST-REPORT.md'}"))
 sys.exit(1 if counts["FAIL"] else 0)

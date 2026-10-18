@@ -40,6 +40,7 @@ sending:
 
 sources:
   fetch: false                          # customers judge the shared pool; only the owner's account reads the sites
+  respect_robots: true                  # skip sources whose robots.txt or terms forbid automated reading
   auto_approve: false
   countries_per_cycle: 0                # new accounts use the shared source list; no web discovery of their own
   cities: {}

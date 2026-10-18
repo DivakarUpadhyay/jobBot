@@ -64,7 +64,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from contextvars import ContextVar
 
-from . import access, control as ct, db, discover as dc, ops, payments, portal, profilestore, report as rp, scheduler, sourcestore
+from . import access, control as ct, db, discover as dc, oauth, ops, payments, portal, privacy, profilestore, report as rp, scheduler, sourcestore, suppress
 from . import APP, use_home
 from .config import PROCESSES, enabled, load_config, overrides, reset_setting, set_setting, setting_problem, settings_list
 from .sources import ADAPTERS
@@ -311,7 +311,7 @@ PAGES = {
     "admin": {"/": "admin-panel/index.html", "/admin": "admin-panel/index.html", "/console": "admin-panel/console.html"},
 }
 PAGES["all"] = {"/app": "customer-portal/index.html", "/admin": "admin-panel/index.html", "/console": "admin-panel/console.html"}
-CUSTOMER_ROUTES = ("/health", "/health/deep", "/login", "/logout", "/me", "/plans", "/register", "/enquiries", "/portal/", "/schedules", "/docs", "/openapi.json")
+CUSTOMER_ROUTES = ("/health", "/health/deep", "/oauth/callback", "/payments/return", "/webhooks/razorpay", "/webhooks/stripe", "/login", "/logout", "/me", "/plans", "/register", "/enquiries", "/portal/", "/schedules", "/docs", "/openapi.json")
 SITE = {"name": "all"}
 
 
@@ -466,9 +466,10 @@ def portal_route(who, method, path, q, body):
     acc = ct.account(who["account_id"])
     # Paid access (access.py): first set-up is free; after it, changes need a paid plan. Checked before any route runs.
     if method != "GET":
-        free = ("/portal/billing", "/portal/checkout", "/portal/tickets", "/portal/onboarding/complete", "/portal/bot/off")
+        free = ("/portal/billing", "/portal/checkout", "/portal/tickets", "/portal/onboarding/complete", "/portal/bot/off",
+                "/portal/suppressions", "/portal/account/delete")   # a customer's rights over their data are never paid for
         paid_only = ("/portal/mailbox", "/portal/bot/on", "/portal/bot/run", "/portal/ai")
-        if not (path in free or re.fullmatch(r"/portal/payments/\d+/confirm", path)):
+        if not (path in free or re.fullmatch(r"/portal/payments/\d+/confirm|/portal/suppressions/[^/]+|/portal/mailbox/[^/]+@[^/]+", path)):
             problem = access.paid_problem(acc) if path.startswith(paid_only) else access.edit_problem(acc)
             if problem:
                 return 402, {"error": problem, "payment_required": True}
@@ -558,6 +559,38 @@ def portal_route(who, method, path, q, body):
             return 200, portal.tickets_mine(who)
         if method == "POST":
             return 201, portal.ticket_create(who, body())
+    if path == "/portal/mailbox/oauth" and method == "GET":
+        return 200, {"providers": oauth.configured()}
+    if path == "/portal/mailbox/oauth/start" and method == "POST":
+        if who["role"] != "owner":
+            return 403, {"error": "only the account owner may connect mailboxes"}
+        return 200, {"url": oauth.start(who["account_id"], who["user_id"], body().get("provider"))}
+    m = re.fullmatch(r"/portal/mailbox/([^/]+@[^/]+)", path)
+    if m and method == "DELETE":
+        if who["role"] != "owner":
+            return 403, {"error": "only the account owner may remove mailboxes"}
+        out = portal.mailbox_remove(unquote(m.group(1)))
+        return (200, out) if out else (404, {"error": "no such mailbox"})
+    if path == "/portal/suppressions":
+        if method == "GET":
+            return 200, suppress.listing(who["account_id"])
+        if method == "POST":
+            added = suppress.add(body().get("address"), "manual", who["account_id"], body().get("note") or "")
+            return (201, {"address": added}) if added else (400, {"error": "give an email address or @domain"})
+    m = re.fullmatch(r"/portal/suppressions/([^/]+)", path)
+    if m and method == "DELETE":
+        removed = suppress.remove(unquote(m.group(1)), who["account_id"])
+        return (200, {"removed": True}) if removed else (404, {"error": "not on your list (entries for everyone stay)"})
+    if path == "/portal/export" and method == "GET":
+        return 200, privacy.export(who["account_id"])
+    if path == "/portal/account/delete" and method == "POST":
+        b = body()
+        if who["role"] != "owner":
+            return 403, {"error": "only the account owner may delete the account"}
+        user = ct._one("SELECT password_hash FROM users WHERE id=?", who["user_id"])
+        if b.get("confirm") != "DELETE" or not user or not ct.check_password(b.get("password") or "", user["password_hash"]):
+            return 400, {"error": 'send your password and confirm: "DELETE"'}
+        return 200, privacy.delete(who["account_id"], who)
     return None
 
 
@@ -612,6 +645,15 @@ def operator_route(who, method, path, q, body):
         return 201, ops.backup("operator")
     if path == "/operator/health" and method == "GET":
         return 200, ops.health(deep=True)[1]
+    if path == "/operator/suppressions" and method == "GET":
+        return 200, suppress.listing(None, min(int((q.get("limit") or [500])[0]), 5000))
+    if path == "/operator/suppressions" and method == "POST":
+        b = body()
+        added = suppress.add(b.get("address"), b.get("reason") or "manual", None, b.get("note") or "")
+        return (201, {"address": added}) if added else (400, {"error": "give an email address or @domain, and a known reason"})
+    m = re.fullmatch(r"/operator/suppressions/([^/]+)", path)
+    if m and method == "DELETE":
+        return (200, {"removed": True}) if suppress.remove(unquote(m.group(1))) else (404, {"error": "not on the list"})
     return None
 
 
@@ -628,6 +670,66 @@ class Exchange:
             if not isinstance(self._read, dict):
                 raise ValueError("the request body must be a JSON object")
         return self._read
+
+    def _oauth_callback(self, q):
+        """Google or Microsoft sends the customer back here after they agreed (or refused) to connect a mailbox."""
+        one = lambda k: (q.get(k) or [""])[0]
+        try:
+            if one("error"):
+                raise ValueError(f"the mailbox was not connected ({one('error')})")
+            account_id, user_id, provider, email, refresh = oauth.finish(one("state"), one("code"))
+            acc = ct.account(account_id)
+            with use_home(ct.home_of(acc)):
+                portal.mailbox_add_oauth(acc, provider, email, refresh)
+            ct.audit({"account_id": account_id, "user_id": user_id}, f"connect mailbox {provider}", 200, email)
+            title, text = "Mailbox connected", f"{email} is connected. You can close this page or go back to the portal."
+        except Exception as e:
+            title, text = "Mailbox not connected", str(e)
+        return self._page(title, text, back="/app#mailbox")
+
+    def _page(self, title, text, back="/app#billing"):
+        import html
+        page = (f'<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">'
+                f'<meta http-equiv="refresh" content="4;url={back}"><title>{html.escape(title)}</title>'
+                f'<body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem">'
+                f'<h1>{html.escape(title)}</h1><p>{html.escape(text)}</p><p><a href="{back}">Back to the portal</a></p>')
+        self._code, self._answer = 200, page.encode()
+        return self._code, self._answer
+
+    def _payment_return(self, q):
+        """Razorpay or Stripe sends the customer back here. The answer is verified with the gateway, not trusted."""
+        one = lambda k: (q.get(k) or [""])[0]
+        try:
+            if one("cancelled"):
+                return self._page("Payment cancelled", "Nothing was charged. You can choose a plan again at any time.")
+            pid = int(one("payment") or 0)
+            row = payments.from_gateway(pid, {k: v[0] for k, v in q.items()})
+            if not row:
+                return self._page("Payment not found", "We could not find that payment. Nothing was changed.")
+            if row["status"] == "paid":
+                return self._page("Payment received", f"Thank you. Your plan is active until {row['period_end'][:10]}.")
+            return self._page("Payment not completed", "The payment did not go through. Nothing was charged.")
+        except Exception as e:
+            ops.event("payment return failed", level="warning", error=str(e))
+            return self._page("Payment not confirmed", f"{e}. If money was taken, it will be matched within minutes; "
+                                                       "otherwise contact support.")
+
+    def _webhook(self, gateway):
+        """Signed notices from the payment gateways, so a payment counts even if the customer closed the page."""
+        try:
+            if gateway == "razorpay":
+                found = payments.Razorpay.webhook(self._raw, self.headers.get("X-Razorpay-Signature"))
+            else:
+                found = payments.Stripe.webhook(self._raw, self.headers.get("Stripe-Signature"))
+        except PermissionError:
+            self._send(400, {"error": "bad signature"})
+            return self._code, self._answer
+        if found:
+            payment_id, reference = found
+            row = payments.from_gateway(payment_id, {"webhook": reference})
+            ops.event("payment webhook", gateway=gateway, payment=payment_id, status=(row or {}).get("status"))
+        self._send(200, {"received": True})
+        return self._code, self._answer
 
     def _metrics(self):
         """Prometheus metrics: for JOBBOT_METRICS_TOKEN (a monitoring system) or a signed-in operator."""
@@ -662,6 +764,12 @@ class Exchange:
                 return self._code, self._answer
             if path == "/metrics" and method == "GET":
                 return self._metrics()
+            if path == "/oauth/callback" and method == "GET":
+                return self._oauth_callback(parse_qs(url.query))
+            if path == "/payments/return" and method == "GET":
+                return self._payment_return(parse_qs(url.query))
+            if path in ("/webhooks/razorpay", "/webhooks/stripe") and method == "POST":
+                return self._webhook(path.rsplit("/", 1)[1])
             answer = public(method, path, self.client, self.headers.get("X-Forwarded-For"), self._body)
             if answer:
                 self._send(*answer)
@@ -925,6 +1033,21 @@ ROUTES = [
     ("POST", "/portal/payments/{payment_id}/confirm", "Customer: finish a test payment {result: success|fail}", "Customer portal"),
     ("GET", "/portal/tickets", "Customer: their support requests and feedback, with replies", "Customer portal"),
     ("POST", "/portal/tickets", "Customer: send a support request or feedback {kind, category, subject, message, rating}", "Customer portal"),
+    ("GET", "/portal/mailbox/oauth", "Customer: which providers they can connect a mailbox with by signing in", "Customer portal"),
+    ("POST", "/portal/mailbox/oauth/start", "Customer (owner, paid): start connecting Gmail or Outlook by signing in {provider}; returns the url to open", "Customer portal"),
+    ("DELETE", "/portal/mailbox/{email}", "Customer (owner): disconnect a mailbox; its password or token is deleted", "Customer portal"),
+    ("GET", "/payments/return", "Where Razorpay or Stripe sends the customer back after paying (open; verified with the gateway)", "Customer portal"),
+    ("POST", "/webhooks/razorpay", "Razorpay's signed payment notices (open; signature checked)", "Customer portal"),
+    ("POST", "/webhooks/stripe", "Stripe's signed payment notices (open; signature checked)", "Customer portal"),
+    ("GET", "/oauth/callback", "Where Google or Microsoft sends the customer back after connecting a mailbox (open)", "Customer portal"),
+    ("GET", "/portal/suppressions", "Customer: addresses they will never write to (their own, and the service-wide list)", "Customer portal"),
+    ("POST", "/portal/suppressions", "Customer: never write to this address or @domain {address, note}", "Customer portal"),
+    ("DELETE", "/portal/suppressions/{address}", "Customer: take one of their own entries off the list", "Customer portal"),
+    ("GET", "/portal/export", "Customer: everything kept about their account, as JSON (data portability)", "Customer portal"),
+    ("POST", "/portal/account/delete", "Customer (owner): delete the account and its data {password, confirm: \"DELETE\"}", "Customer portal"),
+    ("GET", "/operator/suppressions", "Operator: the do-not-contact list", "Admin panel"),
+    ("POST", "/operator/suppressions", "Operator: add an address or @domain for every account {address, reason, note}", "Admin panel"),
+    ("DELETE", "/operator/suppressions/{address}", "Operator: take an entry off the list", "Admin panel"),
     ("GET", "/operator/overview", "Operator: every customer with plan, bot state and numbers; service totals", "Admin panel"),
     ("GET", "/operator/payments", "Operator: every payment, and money collected in the last 30 days", "Admin panel"),
     ("GET", "/operator/gateways", "Operator: payment gateways and the markets they serve", "Admin panel"),
@@ -1001,7 +1124,7 @@ ROUTES = [
     ("GET", "/profile/{name}", "One document: resume, email-templates or resume-template", "Settings"),
     ("PUT", "/profile/{name}", "Save a new version of a document", "Settings"),
 ]
-OPEN = {("GET", "/health"), ("GET", "/health/deep"), ("GET", "/metrics"), ("GET", "/"), ("GET", "/admin"), ("GET", "/app"), ("GET", "/console"), ("GET", "/setup"), ("POST", "/setup"),
+OPEN = {("GET", "/oauth/callback"), ("GET", "/payments/return"), ("POST", "/webhooks/razorpay"), ("POST", "/webhooks/stripe"), ("GET", "/health"), ("GET", "/health/deep"), ("GET", "/metrics"), ("GET", "/"), ("GET", "/admin"), ("GET", "/app"), ("GET", "/console"), ("GET", "/setup"), ("POST", "/setup"),
         ("POST", "/login"), ("GET", "/plans"), ("POST", "/register"), ("POST", "/enquiries")}
 MAX_BODY = 1_500_000   # bytes; the largest request is a resume upload (700 KB file, sent as base64)
 

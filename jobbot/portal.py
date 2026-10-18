@@ -352,7 +352,8 @@ def _read_env():
 
 def mailbox_get():
     from . import mailer
-    return [{"email": s["email"], "smtp": s["smtp"], "has_password": bool(s["password"])} for s in mailer.senders()]
+    return [{"email": s["email"], "smtp": s["smtp"], "has_password": bool(s["password"]), "connected_by": s["oauth"] or "app password",
+             "ready": s["can_send"]} for s in mailer.senders()]
 
 
 def mailbox_put(body, account):
@@ -384,6 +385,33 @@ def mailbox_put(body, account):
     emails = [(b.get("email") or "").strip().lower() for b in boxes]
     set_setting("sending.send_from", emails)
     set_setting("sending.cc", {})
+    return {"mailboxes": mailbox_get()}
+
+
+def mailbox_add_oauth(account, provider, email, refresh_token):
+    """Add (or renew) a mailbox connected by signing in. The refresh token is stored encrypted in the account's .env."""
+    from . import mailer
+    current = mailer.senders()
+    existing = next((s for s in current if s["email"].lower() == email), None)
+    if not existing and len(current) >= plan_of(account)["mailboxes"]:
+        raise ValueError(f"your plan allows {plan_of(account)['mailboxes']} mailbox(es); remove one first")
+    n = existing["n"] if existing else max([s["n"] for s in current] or [0]) + 1
+    lines = [l for l in _read_env() if not re.match(rf"\s*SENDER_{n}(_|=)", l)]
+    lines += [f"SENDER_{n}={email}", f"SENDER_{n}_OAUTH={provider}", f"SENDER_{n}_OAUTH_TOKEN={secrets_box.seal(refresh_token)}"]
+    _env_path().write_text("\n".join(lines) + "\n", encoding="utf-8")
+    set_setting("sending.send_from", sorted({s["email"].lower() for s in current} | {email}))
+    return {"mailboxes": mailbox_get()}
+
+
+def mailbox_remove(email):
+    """Disconnect one mailbox (its password or token is deleted from the account's .env)."""
+    from . import mailer
+    target = next((s for s in mailer.senders() if s["email"].lower() == (email or "").lower()), None)
+    if not target:
+        return None
+    lines = [l for l in _read_env() if not re.match(rf"\s*SENDER_{target['n']}(_|=)", l)]
+    _env_path().write_text("\n".join(lines) + "\n", encoding="utf-8")
+    set_setting("sending.send_from", [s["email"].lower() for s in mailer.senders()])
     return {"mailboxes": mailbox_get()}
 
 

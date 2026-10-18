@@ -147,14 +147,25 @@ def now():
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
 
 
+_READY = {}   # database file -> its structure was checked by this process
+
+
 def connect():
     con = sqlite3.connect(CONTROL_FILE, timeout=60)
     con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA foreign_keys=ON")
-    if _version(con) < len(STEPS):
-        _migrate(con)
+    ensure(con)
     return con
+
+
+def ensure(con):
+    """Bring the control tables to the latest step, once per process (the check writes, so it must not wait on
+    other writers every time a connection is opened). db.connect() calls this too."""
+    if not _READY.get(str(CONTROL_FILE)):
+        con.execute("PRAGMA journal_mode=WAL")
+        if _version(con) < len(STEPS):
+            _migrate(con)
+        _READY[str(CONTROL_FILE)] = True
 
 
 def _version(con):

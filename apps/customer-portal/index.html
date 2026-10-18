@@ -392,9 +392,15 @@ details summary{cursor:pointer;color:var(--brand);font-size:13px;font-weight:600
       <div class="page-head"><div><h2>Your mailbox</h2><p class="muted small">Applications are sent from your own address, so replies reach you directly. For Gmail, create an
         <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">app password</a> (two-step sign-in must be on). Your password is stored only in your account's own file and never shown again.</p></div></div>
       <fieldset class="paidonly"><div class="card"><div id="boxList" class="small"></div>
+        <div id="oauthRow" class="row hidden" style="margin:10px 0"></div>
+        <p class="muted small" id="oauthHint"></p>
         <div class="grid"><div><label>Email address</label><input id="mEmail" type="email"></div><div><label>App password</label><input id="mPass" type="password" autocomplete="new-password"></div>
           <div><label>Mail server (SMTP)</label><input id="mSmtp" value="smtp.gmail.com"></div></div>
         <div class="row" style="margin-top:14px"><button class="btn primary" onclick="saveMailbox()">Connect</button><button class="btn" onclick="testMailbox()">Test sign-in</button></div><div id="mailMsg"></div></div></fieldset>
+      <div class="card" style="margin-top:16px"><h3>Never write to</h3>
+        <p class="muted small">Addresses or whole domains (for example @company.com) the bot must never email for you. People who asked not to be contacted, and addresses that bounced, are on the service-wide list and are blocked for everyone.</p>
+        <div class="row"><input id="dncAddr" placeholder="name@company.com or @company.com" style="max-width:320px"><button class="btn" onclick="addDnc()">Add</button></div>
+        <div id="dncList" class="small" style="margin-top:10px"></div><div id="dncMsg"></div></div>
     </section>
 
     <section data-page="queue" class="hidden">
@@ -423,6 +429,14 @@ details summary{cursor:pointer;color:var(--brand);font-size:13px;font-weight:600
       <h3 style="margin-top:20px">Payments</h3>
       <div class="card wrap"><table><thead><tr><th>Date</th><th>Plan</th><th>Amount</th><th>Method</th><th>Status</th><th>Reference</th><th>Valid until</th></tr></thead><tbody id="payRows"></tbody></table></div>
       <div style="margin-top:16px" class="row"><button class="btn danger" onclick="signOut()">Sign out</button></div>
+      <h3 style="margin-top:24px">Your data</h3>
+      <div class="card"><p class="small">Download everything we keep about your account (profile, resume, settings, applications, payments, support requests) as one file.</p>
+        <button class="btn" onclick="exportData()">Download my data</button>
+        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+        <p class="small"><b>Delete my account.</b> Your profile, resume, applications and files are removed and the bot stops. Payment records are kept without your name or email, because tax law requires it. This cannot be undone.</p>
+        <div class="row"><input id="delPass" type="password" placeholder="Your password" autocomplete="current-password" style="max-width:220px">
+          <input id="delConfirm" placeholder='Type DELETE' style="max-width:140px"><button class="btn danger" onclick="deleteAccount()">Delete my account</button></div>
+        <div id="delMsg"></div></div>
     </section>
 
     <section data-page="help" class="hidden">
@@ -779,8 +793,53 @@ async function aiUse(where) {
 }
 async function loadMailbox() {
   const boxes = await api("GET", "/portal/mailbox");
-  $("boxList").innerHTML = boxes.length ? boxes.map(b => `<div class="check"><div class="dot done">✓</div><div style="flex:1">${esc(b.email)} <span class="muted">· ${esc(b.smtp)}</span></div></div>`).join("") : `<p class="muted">No mailbox connected yet.</p>`;
-  if (boxes[0]) { $("mEmail").value = boxes[0].email; $("mSmtp").value = boxes[0].smtp; }
+  $("boxList").innerHTML = boxes.length ? boxes.map(b => `<div class="check"><div class="dot done">✓</div><div style="flex:1">${esc(b.email)}
+      <span class="muted">· ${b.connected_by === "app password" ? esc(b.smtp) : "signed in with " + esc(b.connected_by === "google" ? "Google" : "Microsoft")}</span></div>
+      <button class="btn sm" onclick="removeBox('${esc(b.email)}')">Disconnect</button></div>`).join("") : `<p class="muted">No mailbox connected yet.</p>`;
+  const pw = boxes.find(b => b.connected_by === "app password");
+  if (pw) { $("mEmail").value = pw.email; $("mSmtp").value = pw.smtp; }
+  try {
+    const o = (await api("GET", "/portal/mailbox/oauth")).providers;
+    $("oauthRow").innerHTML = o.map(p => `<button class="btn primary" onclick="connectOAuth('${esc(p.provider)}')">Connect ${esc(p.name)} by signing in</button>`).join("");
+    $("oauthRow").classList.toggle("hidden", !o.length);
+    $("oauthHint").textContent = o.length ? "Recommended: sign in with your provider. We never see your password, and you can withdraw access at any time. Or use an app password below." : "";
+  } catch (e) {}
+  loadDnc();
+}
+async function connectOAuth(provider) {
+  try { const r = await api("POST", "/portal/mailbox/oauth/start", {provider}); if (/^https:\/\//.test(r.url)) location.href = r.url; }
+  catch (e) { msg("mailMsg", e.message, false); }
+}
+async function removeBox(email) {
+  if (!confirm(`Disconnect ${email}? The bot stops sending from it.`)) return;
+  try { await api("DELETE", "/portal/mailbox/" + encodeURIComponent(email)); msg("mailMsg", "Disconnected."); loadMailbox(); }
+  catch (e) { msg("mailMsg", e.message, false); }
+}
+async function loadDnc() {
+  const rows = await api("GET", "/portal/suppressions");
+  $("dncList").innerHTML = rows.length ? rows.map(r => `<div class="row between"><span>${esc(r.address)} <span class="muted">· ${r.everyone ? "service-wide (" + esc(r.reason) + ")" : "yours"}</span></span>
+      ${r.everyone ? "" : `<button class="btn sm" onclick="removeDnc('${esc(r.address)}')">Remove</button>`}</div>`).join("") : `<p class="muted">Nobody on your list.</p>`;
+}
+async function addDnc() {
+  try { await api("POST", "/portal/suppressions", {address: $("dncAddr").value.trim()}); $("dncAddr").value = ""; loadDnc(); }
+  catch (e) { msg("dncMsg", e.message, false); }
+}
+async function removeDnc(a) {
+  try { await api("DELETE", "/portal/suppressions/" + encodeURIComponent(a)); loadDnc(); } catch (e) { msg("dncMsg", e.message, false); }
+}
+async function exportData() {
+  try { const data = await api("GET", "/portal/export");
+        const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}));
+        const a = document.createElement("a"); a.href = url; a.download = "jobpilot-my-data.json"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 2000); }
+  catch (e) { msg("billMsg", e.message, false); }
+}
+async function deleteAccount() {
+  if ($("delConfirm").value !== "DELETE") return msg("delMsg", "Type DELETE to confirm.", false);
+  if (!confirm("Delete your account and all its data now? This cannot be undone.")) return;
+  try { await api("POST", "/portal/account/delete", {password: $("delPass").value, confirm: "DELETE"});
+        try { localStorage.removeItem(KEY); } catch (e) {}
+        document.body.innerHTML = '<main style="max-width:32rem;margin:3rem auto;padding:0 1rem;font-family:system-ui"><h1>Account deleted</h1><p>Your account and its data have been removed. Thank you for trying JobPilot.</p></main>'; }
+  catch (e) { msg("delMsg", e.message, false); }
 }
 async function saveMailbox() {
   try { await api("PUT", "/portal/mailbox", {mailboxes: [{email: $("mEmail").value.trim(), app_password: $("mPass").value, smtp: $("mSmtp").value.trim()}]});
@@ -913,12 +972,16 @@ async function loadAccount() {
 async function buy(plan) {
   if (!bill.gateways.length) return msg("billMsg", "No payment method is available in your country yet.", false);
   try {
-    const r = await api("POST", "/portal/checkout", {plan, gateway: bill.gateways[0].code});
+    const live = bill.gateways.find(g => !g.test_mode && g.adapter_ready) || bill.gateways[0];
+    const r = await api("POST", "/portal/checkout", {plan, gateway: live.code});
     const p = r.payment;
     $("payBox").classList.remove("hidden");
     $("payBox").innerHTML = `<h3>Checkout · ${esc(plan)}</h3><p>Amount: <b>${money({price_month: p.amount, currency: p.currency})}</b> for 30 days · ${esc(r.gateway.name)}</p>
       ${r.next.mode === "test" ? `<p class="msg bad">${esc(r.next.message)}</p><div class="row"><button class="btn primary" id="payOk" onclick="finishPay(${p.id}, 'success')">Pay (test)</button>
-        <button class="btn" id="payFail" onclick="finishPay(${p.id}, 'fail')">Simulate a failed payment</button></div>` : `<p class="muted">Continue with ${esc(r.gateway.name)}.</p>`}`;
+        <button class="btn" id="payFail" onclick="finishPay(${p.id}, 'fail')">Simulate a failed payment</button></div>`
+      : r.next.mode === "redirect" ? `<p>You will now go to ${esc(r.gateway.name)} to pay. You come back here when it is done.</p>`
+      : `<p class="muted">Continue with ${esc(r.gateway.name)}.</p>`}`;
+    if (r.next.mode === "redirect" && /^https:\/\//.test(r.next.url)) { setTimeout(() => { location.href = r.next.url; }, 800); }
     $("payBox").scrollIntoView({behavior: "smooth"});
   } catch (e) { msg("billMsg", e.message, false); }
 }

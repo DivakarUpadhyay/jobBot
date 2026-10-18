@@ -469,7 +469,7 @@ def _():
 
 
 # ---------------------------------------------------------------- sending rules
-ACCOUNTS = [s for s in mailer.senders() if s["password"]]
+ACCOUNTS = [s for s in mailer.senders() if s["can_send"]]
 ALLOWED = [e.lower() for e in cfg["sending"].get("send_from") or []]
 SENDING = [s for s in ACCOUNTS if not ALLOWED or s["email"].lower() in ALLOWED]
 
@@ -602,18 +602,29 @@ def _held_elsewhere(lock_class):
     return p
 
 
+def _kill_tree(p):
+    """Kill the helper and the interpreter a venv's python.exe starts under it, as a crash would."""
+    if os.name == "nt":
+        import subprocess
+        subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True)
+    else:
+        p.kill()
+    p.wait()
+
+
 @test("Sending", "two sends cannot run at the same time")
 def _():
     other = _held_elsewhere("SendLock")
     try:
-        assert sq.holder(sq.LOCK) == other.pid
+        held_by = sq.holder(sq.LOCK)   # a venv's python.exe starts the real interpreter as a child, so not other.pid
+        assert held_by and held_by != os.getpid(), held_by
         try:
             with sq.SendLock():
                 raise AssertionError("second send was allowed")
         except RuntimeError:
             pass
     finally:
-        other.kill(); other.wait()
+        _kill_tree(other)
     assert sq.holder(sq.LOCK) is None, "a killed send left its lock behind"
     with sq.SendLock():
         assert sq.holder(sq.LOCK) == os.getpid()
@@ -702,7 +713,7 @@ def _():
         except RuntimeError:
             pass
     finally:
-        other.kill(); other.wait()
+        _kill_tree(other)
     with sq.LoopLock():
         assert sq.holder(sq.LOOP_LOCK) == os.getpid()
     assert sq.holder(sq.LOOP_LOCK) is None and not sq.pid_alive(999999)
@@ -1529,6 +1540,205 @@ def _():
                                                            "smtp": "smtp.example.org\nANTHROPIC_API_KEY=stolen"}]})
     assert bad[0] == 400 and "ANTHROPIC" not in (NEW["home"] / ".env").read_text(encoding="utf-8"), "a line could be injected"
     return "encrypted at rest, injection refused"
+
+
+@test("Sending", "the do-not-contact list stops an email, for every account or for one")
+def _():
+    from jobbot import suppress
+    t = Job(source="test", ext_id="zz-test-dnc", title="Senior .NET Developer", company="Dnc Test Co", url="u",
+            description="hr@dnc-test.example", location="Remote", region="", remote=True, job_type="full", posted_at="")
+    try:
+        db.insert_job(con, t, {"track": "full", "category": "x", "emails": ["hr@dnc-test.example"], "score": 90,
+                               "notes": "", "skip": None, "dedupe_key": "dnctest|x"})
+        con.execute("UPDATE jobs SET status='matched', send_status='approved', resume_path='x' WHERE ext_id='zz-test-dnc'")
+        con.commit()
+        assert "hr@dnc-test.example" in [to for _, to in sq.sendable(con, cfg)]
+        suppress.add("@dnc-test.example", "manual", account_id=999999)   # another account's own entry: not for this one
+        assert "hr@dnc-test.example" in [to for _, to in sq.sendable(con, cfg)], "another account's entry blocked this one"
+        suppress.add("hr@dnc-test.example", "unsubscribed")             # asked not to be written to: for everyone
+        assert "hr@dnc-test.example" not in [to for _, to in sq.sendable(con, cfg)]
+        assert suppress.OPT_OUT.search("Please remove me from your list") and not suppress.OPT_OUT.search("Thanks, we will review it")
+        if not NEW.get("token"):
+            return "service-wide and per-account entries obeyed (portal part runs with the Accounts area)"
+        theirs = lambda path, *a: call(path, *a, token=NEW["token"])
+        assert theirs("/portal/suppressions", "POST", {"address": "boss@zz-test.example"})[0] == 201
+        mine = theirs("/portal/suppressions")[1]
+        assert any(x["address"] == "boss@zz-test.example" for x in mine)
+        assert theirs("/portal/suppressions/hr@dnc-test.example", "DELETE")[0] == 404, "a customer removed a service-wide entry"
+        assert theirs("/portal/suppressions/boss@zz-test.example", "DELETE")[0] == 200
+    finally:
+        con.execute("DELETE FROM jobs WHERE ext_id='zz-test-dnc'")
+        con.execute("DELETE FROM postings WHERE ext_id='zz-test-dnc'")
+        con.commit()
+        for a in ("@dnc-test.example", "hr@dnc-test.example", "boss@zz-test.example"):
+            suppress.remove(a)
+    return "service-wide and per-account entries obeyed"
+
+
+@test("Security", "a mailbox is connected by signing in (OAuth): no password kept, token encrypted")
+def _():
+    if not NEW.get("token"):
+        return "SKIP runs with the Accounts area"
+    import base64 as b64
+    from jobbot import mailer, oauth
+    keys = {"JOBBOT_PUBLIC_URL": "https://jobpilot.example", "GOOGLE_OAUTH_CLIENT_ID": "zz-client",
+            "GOOGLE_OAUTH_CLIENT_SECRET": "zz-secret"}
+    saved = {k: os.environ.get(k) for k in keys}
+    os.environ.update(keys)
+    claims = b64.urlsafe_b64encode(json.dumps({"email": "zz-test-oauth@gmail.com"}).encode()).decode().rstrip("=")
+
+    class Answer:
+        status_code, headers = 200, {"content-type": "application/json"}
+
+        def __init__(self, data):
+            self._data = data
+
+        def json(self):
+            return self._data
+    asked = []
+
+    def fake_post(url, timeout=None, data=None):
+        asked.append(data)
+        if data["grant_type"] == "authorization_code":
+            return Answer({"access_token": "at-1", "refresh_token": "rt-secret-1", "expires_in": 3600, "id_token": f"h.{claims}.s"})
+        return Answer({"access_token": "at-2", "expires_in": 3600})
+    real_post = oauth.requests.post
+    oauth.requests.post = fake_post
+    theirs = lambda path, *a: call(path, *a, token=NEW["token"])
+    try:
+        assert {"provider": "google", "name": "Gmail"} in theirs("/portal/mailbox/oauth")[1]["providers"]
+        url = theirs("/portal/mailbox/oauth/start", "POST", {"provider": "google"})[1]["url"]
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        assert q["client_id"] == ["zz-client"] and q["code_challenge_method"] == ["S256"] and "mail.google.com" in q["scope"][0]
+        assert q["redirect_uri"] == ["https://jobpilot.example/oauth/callback"]
+        bad = call("/oauth/callback?state=made-up&code=x", token=None)
+        assert bad[0] == 200 and "not connected" in bad[1].lower()
+        page = call(f"/oauth/callback?state={q['state'][0]}&code=the-code", token=None)[1]
+        assert "is connected" in page, page[:300]
+        assert asked[0]["code_verifier"] and asked[0]["client_secret"] == "zz-secret"
+        boxes = theirs("/portal/mailbox")[1]
+        box = next(b for b in (boxes if isinstance(boxes, list) else boxes.get("mailboxes", [])) if b["email"] == "zz-test-oauth@gmail.com")
+        assert box["connected_by"] == "google" and box["ready"] and not box["has_password"]
+        raw = (NEW["home"] / ".env").read_text(encoding="utf-8")
+        assert "rt-secret-1" not in raw and "_OAUTH_TOKEN=enc:" in raw, "the refresh token is stored in plain text"
+        with use_home(NEW["home"]):
+            s = next(x for x in mailer.senders() if x["email"] == "zz-test-oauth@gmail.com")
+            oauth._access.clear()
+            assert oauth.access_token(s) == "at-2" and asked[-1]["refresh_token"] == "rt-secret-1"
+        assert oauth.xoauth2("a@b.c", "tok") == "user=a@b.c\x01auth=Bearer tok\x01\x01"
+        assert call(f"/oauth/callback?state={q['state'][0]}&code=again", token=None)[1].count("not connected"), "a state was used twice"
+        assert theirs("/portal/mailbox/zz-test-oauth@gmail.com", "DELETE")[0] == 200
+        assert "rt-secret" not in (NEW["home"] / ".env").read_text(encoding="utf-8") and "OAUTH" not in (NEW["home"] / ".env").read_text(encoding="utf-8")
+    finally:
+        oauth.requests.post = real_post
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return "signed in, token encrypted, renewed, disconnected"
+
+
+@test("Portal", "Razorpay and Stripe: checkout opens their page, and only a correctly signed answer counts as paid")
+def _():
+    import hashlib
+    import hmac as hm
+    from jobbot import payments as pay
+    keys = {"JOBBOT_PUBLIC_URL": "https://jobpilot.example", "RAZORPAY_KEY_ID": "rzp_test_x", "RAZORPAY_KEY_SECRET": "rz-secret",
+            "RAZORPAY_WEBHOOK_SECRET": "rz-hook", "STRIPE_SECRET_KEY": "sk_test_x", "STRIPE_WEBHOOK_SECRET": "whsec_x"}
+    saved = {k: os.environ.get(k) for k in keys}
+    os.environ.update(keys)
+
+    class Answer:
+        status_code = 200
+
+        def __init__(self, data):
+            self._data = data
+
+        def json(self):
+            return self._data
+    import requests as rq
+    real_post, real_get, sent = rq.post, rq.get, []
+
+    def fake_post(url, **kw):
+        sent.append((url, kw))
+        if "razorpay" in url:
+            return Answer({"id": "plink_1", "short_url": "https://rzp.io/i/abc"})
+        return Answer({"id": "cs_test_1", "url": "https://checkout.stripe.com/c/pay/cs_test_1"})
+    rq.post = fake_post
+    acc_id = control.account_create("zz-test payer")["id"]
+    control._write("UPDATE accounts SET market='IN', plan='trial' WHERE id=?", acc_id)
+    plan = control._one("SELECT * FROM plans WHERE market='IN' AND price_month>0 AND active=1 ORDER BY price_month")
+    try:
+        assert pay.ADAPTERS["razorpay"].ready() and pay.ADAPTERS["stripe"].ready()
+        # Razorpay
+        _, pid = control._write("INSERT INTO payments(account_id, plan, amount, currency, gateway, status, created_at) "
+                                "VALUES(?,?,?,?,?,'created',?)", acc_id, plan["name"], plan["price_month"], "INR", "razorpay", control.now())
+        nxt = pay.ADAPTERS["razorpay"].start(control._one("SELECT * FROM payments WHERE id=?", pid), {})
+        assert nxt == {"mode": "redirect", "url": "https://rzp.io/i/abc"} and sent[-1][1]["json"]["amount"] == int(plan["price_month"] * 100)
+        answer = {"razorpay_payment_link_id": "plink_1", "razorpay_payment_link_reference_id": f"jp-{pid}",
+                  "razorpay_payment_link_status": "paid", "razorpay_payment_id": "pay_1"}
+        forged = answer | {"razorpay_signature": "0" * 64}
+        page = call(f"/payments/return?gateway=razorpay&payment={pid}&" + urllib.parse.urlencode(forged), token=None)[1]
+        assert "not confirmed" in page.lower() and control._one("SELECT status FROM payments WHERE id=?", pid)["status"] == "created"
+        sig = hm.new(b"rz-secret", "|".join(answer.values()).encode(), hashlib.sha256).hexdigest()
+        page = call(f"/payments/return?gateway=razorpay&payment={pid}&" + urllib.parse.urlencode(answer | {"razorpay_signature": sig}), token=None)[1]
+        assert "payment received" in page.lower(), page[:300]
+        assert control._one("SELECT paid_until FROM accounts WHERE id=?", acc_id)["paid_until"] > control.now()
+        # Stripe, confirmed by its signed webhook
+        _, sid = control._write("INSERT INTO payments(account_id, plan, amount, currency, gateway, status, created_at) "
+                                "VALUES(?,?,?,?,?,'created',?)", acc_id, plan["name"], plan["price_month"], "INR", "stripe", control.now())
+        assert pay.ADAPTERS["stripe"].start(control._one("SELECT * FROM payments WHERE id=?", sid), {})["url"].startswith("https://checkout.stripe.com")
+        event = json.dumps({"type": "checkout.session.completed", "data": {"object": {
+            "id": "cs_test_1", "payment_status": "paid", "client_reference_id": str(sid), "payment_intent": "pi_1"}}}).encode()
+        stamp = str(int(time.time()))
+        good = hm.new(b"whsec_x", stamp.encode() + b"." + event, hashlib.sha256).hexdigest()
+
+        def hook(sig_header):
+            req = urllib.request.Request(f"http://127.0.0.1:{PORT}/webhooks/stripe", data=event, method="POST",
+                                         headers={"Stripe-Signature": sig_header, "Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    return r.status
+            except urllib.error.HTTPError as e:
+                return e.code
+        assert hook(f"t={stamp},v1={'0' * 64}") == 400 and control._one("SELECT status FROM payments WHERE id=?", sid)["status"] == "created"
+        assert hook(f"t={stamp},v1={good}") == 200
+        assert control._one("SELECT status, reference FROM payments WHERE id=?", sid) == {"status": "paid", "reference": "pi_1"}
+        assert hook(f"t={stamp},v1={good}") == 200, "a repeated webhook failed"
+    finally:
+        rq.post, rq.get = real_post, real_get
+        control._write("DELETE FROM payments WHERE account_id=?", acc_id)
+        control._write("UPDATE accounts SET slug='zz-test-payer-' || id WHERE id=?", acc_id)
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return "forged answers refused; signed answers and webhooks recorded the payments"
+
+
+@test("Portal", "a customer can download all their data and delete their account")
+def _():
+    code, reg = call("/register", "POST", {"name": "zz-test delete me", "email": "zz-test-delete@example.org", "password": PASSWORD,
+                                           "market": "IN"}, token=None)
+    assert code in (200, 201), reg
+    me = lambda path, *a: call(path, *a, token=reg["token"])
+    me("/portal/details", "PUT", {"full_name": "Zz Delete", "city": "Pune"})
+    data = me("/portal/export")[1]
+    assert data["account"]["id"] == reg["account"]["id"] and data["users"][0]["email"] == "zz-test-delete@example.org"
+    assert "password_hash" not in json.dumps(data) and "Zz Delete" in json.dumps(data)
+    assert me("/portal/account/delete", "POST", {"password": "wrong-password-1", "confirm": "DELETE"})[0] == 400
+    gone = me("/portal/account/delete", "POST", {"password": PASSWORD, "confirm": "DELETE"})
+    assert gone[0] == 200 and gone[1]["deleted"], gone
+    assert me("/portal/export")[0] == 401, "the deleted account's sign-in still works"
+    left = control._one("SELECT * FROM accounts WHERE id=?", reg["account"]["id"])
+    assert left["status"] == "deleted" and left["contact_email"] is None and left["name"] == "Deleted account"
+    assert not control._one("SELECT 1 FROM users WHERE email='zz-test-delete@example.org'")
+    assert not control._one("SELECT 1 FROM acct_prefs WHERE account_id=?", reg["account"]["id"])
+    assert call("/portal/account/delete", "POST", {"password": PASSWORD, "confirm": "DELETE"})[0] == 400, "the owner's account could be deleted"
+    control._write("UPDATE accounts SET slug='zz-test-deleted-' || id WHERE id=?", reg["account"]["id"])   # cleared on the next run
+    return f"export had {len(data)} sections; deleted, payments kept: {gone[1]['payments_kept']}"
 
 
 @test("Portal", "a new customer sets up for free, is locked until paying, and is unlocked by a test payment")

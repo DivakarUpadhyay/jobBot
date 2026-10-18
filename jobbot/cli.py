@@ -40,6 +40,10 @@ def scrape(only: Optional[str] = typer.Option(None, help="Run just this source."
     fetch = bool((cfg.get("sources") or {}).get("fetch", True)) or bool(wanted)
     todo = [src for src in load_sources()
             if (str(src["name"]) in wanted if wanted else src.get("enabled"))] if fetch else []
+    if (cfg.get("sources") or {}).get("respect_robots") and not wanted:
+        from . import compliance
+        refused = compliance.blocked_sources(con)   # robots.txt disallows them, or their terms forbid reading them
+        todo = [src for src in todo if str(src["name"]) not in refused]
 
     def read(src):
         try:
@@ -504,8 +508,8 @@ def sender_list():
         raise typer.Exit(console.print("No senders in .env yet. Add SENDER_1=... and SENDER_1_APP_PASSWORD=...") or 1)
     t = Table("#", "Email", "Mail server", "Login")
     for s in accounts:
-        if not s["password"]:
-            state = "[red]no app password in .env[/red]"
+        if not s["can_send"]:
+            state = "[red]no app password or sign-in in .env[/red]"
         else:
             try:
                 mailer.check_login(s); state = "[green]ok[/green]"
@@ -520,7 +524,7 @@ def sender_test(job_id: Optional[int] = typer.Argument(None, help="Use this job'
                 swap: bool = typer.Option(False, help="Send from account 2 to account 1 instead.")):
     """Send one real application email from one of your accounts to the other, so you can see
     exactly what HR would receive. Nothing goes to anyone else."""
-    accounts = [s for s in mailer.senders() if s["password"]]
+    accounts = [s for s in mailer.senders() if s["can_send"]]
     if len(accounts) < 2:
         raise typer.Exit(console.print("Need two senders with app passwords in .env for this test.") or 1)
     src, dst = (accounts[1], accounts[0]) if swap else (accounts[0], accounts[1])

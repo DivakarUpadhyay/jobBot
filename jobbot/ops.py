@@ -264,19 +264,17 @@ def raise_alert(kind, message, key=None, account_id=None):
 
 
 def _email_alert(to, kind, message):
-    import smtplib
     from email.message import EmailMessage
     from . import mailer, use_home
     with use_home(DATA):
-        senders = [s for s in mailer.senders() if s.get("password")]
+        senders = [s for s in mailer.senders() if s.get("can_send")]
     if not senders:
         raise RuntimeError("no sending account with a password in DATA/.env")
     s = senders[0]
     msg = EmailMessage()
     msg["From"], msg["To"], msg["Subject"] = s["email"], to, f"[JobPilot alert] {kind}"
     msg.set_content(f"{message}\n\nOpen the admin panel, System tab, to see all open alerts.")
-    with smtplib.SMTP_SSL(s.get("smtp") or "smtp.gmail.com", 465, timeout=30) as smtp:
-        smtp.login(s["email"], s["password"])
+    with mailer.smtp_session(s, timeout=30) as smtp:
         smtp.send_message(msg)
 
 

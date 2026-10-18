@@ -236,6 +236,8 @@ def connect(account=None):
     con.execute("PRAGMA journal_mode=WAL")                     # reports can read while a long step is running
     con.execute("PRAGMA busy_timeout=60000")
     _ensure_schema(con)
+    from . import control
+    control.ensure(con)   # the control tables live in this same file; the job code reads some of them (suppressions)
     account = account or account_id()
     _views(con, account)
     _init_account(con)

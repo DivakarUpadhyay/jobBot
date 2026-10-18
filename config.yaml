@@ -177,6 +177,9 @@ leads:
 sources:
   # true = this account reads the job sites into the shared pool of postings (the service owner's account only)
   fetch: true
+  # true = skip a source whose robots.txt disallows reading it, or whose terms you marked as forbidding it
+  # (`jobbot source compliance` checks every source; 104 is among those robots.txt disallows)
+  respect_robots: false
   auto_approve: true             # true = sources found by discovery are used at once; false = they wait for you
   countries_per_cycle: 2         # countries checked each time the bot goes looking for new sources
   discovery_rounds_when_empty: 2 # how many times to look further if the new sources also bring nothing

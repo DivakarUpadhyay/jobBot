@@ -18,7 +18,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import HomePath, db, mailer, render
+from . import HomePath, db, mailer, render, suppress
 
 LABEL_ROOT = "Jobs"
 TRACK_LABEL = {"full": "Full-time", "part": "Part-time", "freelance": "Freelance", "lead": "Leads",
@@ -78,10 +78,13 @@ def sendable(con, cfg):
                           AND (resume_path IS NOT NULL OR job_type='lead') AND source!='freelancer'
                           ORDER BY (region='taiwan') DESC, score DESC, posted_at DESC""").fetchall()   # Taiwan first, then newest
     kinds, seen = {"full": [], "part": [], "lead": [], "prospect": []}, set()
+    block = suppress.blocked(con=con)
     for r in rows:
         to = json.loads(r["emails"])[0].lower()
         key = company_key(r)
         if BAD_ADDRESS.search(to.split("@")[0]):   # garbled when read from the page: it would only bounce
+            continue
+        if suppress.is_blocked(to, block):        # bounced before, asked not to be written to, or blocked by the account
             continue
         if key in recent_companies or to in used_addresses or key in seen or to in seen:
             continue
@@ -178,11 +181,10 @@ def label_for(row):
 
 def apply_label(sender, to, label):
     """File the just-sent message under a Gmail label (only you see labels). Best effort."""
-    if "gmail" not in sender["smtp"]:
+    if "gmail" not in (sender.get("imap") or ""):   # labels are Gmail's own
         return
     try:
-        m = imaplib.IMAP4_SSL("imap.gmail.com", timeout=30)
-        m.login(sender["email"], sender["password"])
+        m = mailer.imap_session(sender)
         _, boxes = m.list()
         sent_box = next((re.search(r'"([^"]+)"$', b.decode()).group(1) for b in boxes if b"\\Sent" in b), None)
         m.select(f'"{sent_box}"')
@@ -206,6 +208,10 @@ def _send_batch(sender, batch, cfg, master, results, redirect, lock):
         for i, (row, to) in enumerate(batch):
             if i:
                 time.sleep(random.uniform(*gap))
+            if not redirect and suppress.is_blocked(to):   # added to the do-not-contact list since the batch was made
+                con.execute("UPDATE jobs SET send_status='rejected', send_error='on the do-not-contact list' WHERE id=?", (row["id"],))
+                con.commit()
+                continue
             if not redirect:
                 # Claim this address first. If the bot is stopped between here and Gmail's answer,
                 # the job stays 'sending' and is never sent again automatically.
@@ -274,15 +280,24 @@ def check_inbox(sender, con, days=7):
     Returns (bounced, replied) counts newly recorded."""
     rows = con.execute("SELECT id, to_email FROM jobs WHERE sender=? AND send_status='sent' AND outcome IS NULL",
                        (sender["email"],)).fetchall()
-    if not rows or "gmail" not in sender["smtp"]:
+    if not rows or not sender.get("imap"):
         return 0, 0
     waiting = {r["to_email"].lower(): r["id"] for r in rows}
     bounced = replied = 0
-    m = imaplib.IMAP4_SSL("imap.gmail.com", timeout=30)
+    gmail = "gmail" in sender["imap"]
+
+    def search(gmail_query, since_days, sender_address):
+        """Gmail's own search where it is Gmail; standard IMAP search (FROM, SINCE) elsewhere."""
+        if gmail:
+            return m.uid("SEARCH", None, "X-GM-RAW", f'"{gmail_query}"')
+        since = (dt.date.today() - dt.timedelta(days=since_days)).strftime("%d-%b-%Y")
+        return m.uid("SEARCH", None, "FROM", f'"{sender_address}"', "SINCE", since)
+    m = mailer.imap_session(sender)
     try:
-        m.login(sender["email"], sender["password"])
         m.select("INBOX", readonly=True)
-        _, data = m.uid("SEARCH", None, "X-GM-RAW", f'"from:mailer-daemon newer_than:{days}d"')
+        _, data = search(f"from:mailer-daemon newer_than:{days}d", days, "mailer-daemon")
+        if not gmail:   # Outlook's notices come from postmaster
+            data = [data[0] + b" " + search("", days, "postmaster")[1][0]]
         for uid in data[0].split()[-50:]:
             _, parts = m.uid("FETCH", uid, "(BODY.PEEK[TEXT]<0.6000>)")
             text = b" ".join(p[1] for p in parts if isinstance(p, tuple)).decode("utf-8", "replace").lower()
@@ -290,8 +305,10 @@ def check_inbox(sender, con, days=7):
                 if addr in text:
                     con.execute("UPDATE jobs SET outcome='bounced', outcome_at=? WHERE id=?", (db.now(), job_id))
                     waiting.pop(addr); bounced += 1
+                    if re.search(r"\b5\.\d\.\d\b|does not exist|no such user|user unknown|address not found", text):
+                        suppress.add(addr, "bounced", note=f"hard bounce to {sender['email']}")   # for every account
         for addr, job_id in list(waiting.items()):
-            _, data = m.uid("SEARCH", None, "X-GM-RAW", f'"from:{addr} newer_than:30d"')
+            _, data = search(f"from:{addr} newer_than:30d", 30, addr)
             for uid in data[0].split()[-5:]:
                 _, parts = m.uid("FETCH", uid, "(BODY.PEEK[HEADER.FIELDS (AUTO-SUBMITTED)])")
                 head = b" ".join(p[1] for p in parts if isinstance(p, tuple)).lower()
@@ -301,6 +318,10 @@ def check_inbox(sender, con, days=7):
                     continue
                 con.execute("UPDATE jobs SET outcome='replied', outcome_at=? WHERE id=?", (db.now(), job_id))
                 replied += 1
+                _, parts = m.uid("FETCH", uid, "(BODY.PEEK[TEXT]<0.3000>)")
+                reply = b" ".join(p[1] for p in parts if isinstance(p, tuple)).decode("utf-8", "replace")
+                if suppress.OPT_OUT.search(reply.split("\n>")[0]):   # their own words, not the quoted email below
+                    suppress.add(addr, "unsubscribed", note=f"asked {sender['email']} not to write again")
                 break
         con.commit()
     finally:

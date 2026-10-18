@@ -103,7 +103,7 @@ def send(dry_run: bool = typer.Option(False, help="Show what would be sent; send
     """Send approved emails: split evenly across your accounts, in parallel, inside the daily limits."""
     cfg, con = load_config(), db.connect()
     allowed = [e.lower() for e in cfg["sending"].get("send_from") or []]
-    accounts = [s for s in mailer.senders() if s["password"] and (not allowed or s["email"].lower() in allowed)]
+    accounts = [s for s in mailer.senders() if s["can_send"] and (not allowed or s["email"].lower() in allowed)]
     if not accounts:
         console.print("No sender to use: check send_from in config.yaml and the app passwords in .env.")
         raise typer.Exit(1)
@@ -162,7 +162,7 @@ def inbox():
     t = Table("Account", "Sent today", "Cap", "Sent in all", "Bounced", "Replies", "State")
     for s in mailer.senders():
         note = ""
-        if s["password"]:
+        if s["can_send"]:
             try:
                 sq.check_inbox(s, con)
             except Exception as e:
@@ -435,7 +435,7 @@ def followups(dry_run: bool = typer.Option(False, help="Show which follow-ups ar
     from . import followup as fu
     cfg, con = load_config(), db.connect()
     allowed = [e.lower() for e in cfg["sending"].get("send_from") or []]
-    accounts = [s for s in mailer.senders() if s["password"]]   # the account that applied must follow up
+    accounts = [s for s in mailer.senders() if s["can_send"]]   # the account that applied must follow up
     if not dry_run and not now and not sq.in_hours(cfg):
         console.print("Outside sending hours; no follow-ups sent.")
         return

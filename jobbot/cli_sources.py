@@ -204,3 +204,25 @@ def source_all_on():
     """Switch every source on."""
     names = sourcestore.set_all_enabled(True)
     console.print(f"Switched on: {', '.join(names)}." if names else "Every source was already on.")
+
+
+@source_app.command("compliance")
+def source_compliance(only: str = typer.Option(None, help="Check just these sources (comma separated)"),
+                      show: bool = typer.Option(False, help="Show the last results without checking again")):
+    """Check every switched-on source against its site's robots.txt and list the ones that disallow reading.
+    With sources.respect_robots on, the scrape step skips those (and any you marked with `source terms`)."""
+    from . import compliance
+    rows = compliance.report() if show else compliance.check_all(only=[x.strip() for x in only.split(",")] if only else None)
+    t = Table("Source", "robots.txt", "Terms", "Detail")
+    for r in sorted(rows, key=lambda r: (r["robots"] or "") not in ("disallowed", "unreachable")):
+        t.add_row(r["name"], r["robots"] or "", r.get("terms") or "", (r["detail"] or "")[:80])
+    console.print(t)
+    console.print(f"{sum(r['robots'] == 'disallowed' for r in rows)} disallowed of {len(rows)} checked.")
+
+
+@source_app.command("terms")
+def source_terms(name: str, terms: str = typer.Argument(..., help="ok | forbids | unknown"), note: str = ""):
+    """Record what a site's terms of service say about automated reading (after you have read them)."""
+    from . import compliance
+    compliance.note_terms(name, terms, note)
+    console.print(f"{name}: terms {terms}")

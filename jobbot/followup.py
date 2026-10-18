@@ -25,8 +25,9 @@ def due(con, cfg):
 def original(sender, to):
     """(Message-ID, subject) of the application as it sits in the Sent folder, or (None, None)."""
     try:
-        m = imaplib.IMAP4_SSL("imap.gmail.com", timeout=30)
-        m.login(sender["email"], sender["password"])
+        if "gmail" not in (sender.get("imap") or ""):   # finds the original with Gmail's own search
+            return None, None
+        m = mailer.imap_session(sender)
         _, boxes = m.list()
         sent_box = next((re.search(r'"([^"]+)"$', b.decode()).group(1) for b in boxes if b"\\Sent" in b), None)
         m.select(f'"{sent_box}"', readonly=True)

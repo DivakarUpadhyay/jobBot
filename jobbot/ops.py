@@ -126,6 +126,7 @@ def backup(reason="manual"):
     dst = sqlite3.connect(raw)
     try:
         src.backup(dst, pages=4096, sleep=0.01)   # in steps, so writers are never held up for long
+        dst.execute("PRAGMA journal_mode=DELETE")  # a self-contained file: no -wal or -shm beside it
     finally:
         dst.close()
         src.close()
@@ -135,9 +136,12 @@ def backup(reason="manual"):
         raise_alert("backup", f"the backup made at {stamp} failed its check: {detail}", key=f"backup-{stamp}")
         raise RuntimeError(f"backup failed its check: {detail}")
     packed = raw.with_suffix(".db.gz")
-    with open(raw, "rb") as f, gzip.open(packed, "wb", compresslevel=6) as g:
+    partial = raw.with_suffix(".db.gz.part")   # only a finished file gets the name the listing looks for
+    with open(raw, "rb") as f, gzip.open(partial, "wb", compresslevel=6) as g:
         shutil.copyfileobj(f, g, 1 << 20)
-    raw.unlink()
+    partial.replace(packed)
+    for leftover in (raw, Path(str(raw) + "-wal"), Path(str(raw) + "-shm")):
+        leftover.unlink(missing_ok=True)
     (folder / (packed.name + ".json")).write_text(json.dumps({"made_at": stamp, "reason": reason, "counts": counts}), "utf-8")
     copy_to = env("JOBBOT_BACKUP_COPY_TO")
     copied = None

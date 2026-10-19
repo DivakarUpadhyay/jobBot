@@ -37,6 +37,43 @@ def founders(limit: int = typer.Option(3000, help="Most startup websites to look
     console.print(f"Service offers written: {added} new, {known} before. They wait for your approval.")
 
 
+@prospects_app.command("world")
+def world(countries: Optional[str] = typer.Option(None, help="Countries, comma separated; default: all in prospects_world."),
+          find: bool = typer.Option(True, help="Also look up each company's business inbox on its website."),
+          workers: int = typer.Option(16)):
+    """Companies with a current CEO and a website, by country (Wikidata), and the business inbox each publishes."""
+    from . import prospects_world as pw
+    con = db.connect()
+    wanted = [c.strip() for c in countries.split(",")] if countries else list(pw.COUNTRIES)
+    for country in wanted:
+        console.print(f"  {country}: {pw.import_country(con, country)} companies with a CEO", highlight=False)
+    if find:
+        rows = [r for r in con.execute("SELECT * FROM companies WHERE origin=? AND biz_checked_at IS NULL AND website<>''",
+                                       (pw.ORIGIN,)) if r["country"] in wanted]
+        console.print(f"Looking up {len(rows)} websites...")
+        console.print(f"Business inbox found for {pw.find_business(con, rows, workers=workers)} of {len(rows)}.")
+
+
+@prospects_app.command("export-csv")
+def export_csv(path: Path = typer.Argument(Path("ceo-contacts.csv"), help="Where to write the list.")):
+    """All companies with who runs them, the published address and whether they may be emailed, as one CSV."""
+    from . import prospects_world as pw
+    console.print(f"{pw.export_csv(db.connect(), path)} companies written to {path.resolve()}")
+
+
+@prospects_app.command("world-queue")
+def world_queue(countries: Optional[str] = typer.Option(None, help="Countries, comma separated; default: all allowed."),
+                limit: Optional[int] = typer.Option(None)):
+    """Write the freelance offer for each company that may be emailed. They wait for `approve --services`."""
+    from . import prospects_world as pw
+    con = db.connect()
+    postal = (load_config().get("services") or {}).get("postal_address") or "[postal address needed]"
+    added, skipped = pw.queue(con, render.load_master(), postal,
+                              [c.strip() for c in countries.split(",")] if countries else None, limit)
+    console.print(f"Offers written: {added}; skipped (not allowed, already contacted or listed): {skipped}. "
+                  f"They wait for your approval.")
+
+
 @prospects_app.command("india-import")
 def india_import(cities: Optional[str] = typer.Option(None, help="Cities, comma separated; default: 36 major Indian cities.")):
     """Read Indian companies with a website, by headquarters city, from Wikidata."""
@@ -170,10 +207,10 @@ def approve(published: bool = typer.Option(False, "--published", help="Approve t
         if not postal:
             raise typer.Exit("Set your postal address first (US law requires it in offers): "
                              "set services.postal_address on the admin page, http://127.0.0.1:8765/admin")
-        from . import prospects_founders as pf
+        from . import prospects_founders as pf, prospects_world as pw
         for r in con.execute("SELECT c.*, j.id AS job_id FROM jobs j JOIN companies c ON c.id=CAST(j.ext_id AS INTEGER) "
                              "WHERE j.source='services' AND j.send_status IS NULL").fetchall():
-            subject, body = pf.write(r, render.load_master(), postal)
+            subject, body = (pw if r["origin"] == pw.ORIGIN else pf).write(r, render.load_master(), postal)
             con.execute("UPDATE jobs SET email_subject=?, email_body=?, send_status='approved' WHERE id=?",
                         (subject, body, r["job_id"]))
         con.commit()

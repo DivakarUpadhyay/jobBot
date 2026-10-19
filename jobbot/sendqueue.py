@@ -13,12 +13,18 @@ import json
 import os
 import random
 import re
+import socket
 import sqlite3
 import threading
 import time
 from pathlib import Path
 
 from . import HomePath, db, mailer, render, suppress
+
+# errors raised before the mail server is reached: nothing was sent
+OFFLINE = (socket.gaierror, ConnectionRefusedError)
+# text that must be filled in before an email may go: "[postal address needed]", "{{Company}}"
+PLACEHOLDER = re.compile(r"\[[^\]\n]{0,40}needed\]|\{\{[^}\n]{1,40}\}\}")
 
 LABEL_ROOT = "Jobs"
 TRACK_LABEL = {"full": "Full-time", "part": "Part-time", "freelance": "Freelance", "lead": "Leads",
@@ -208,6 +214,12 @@ def _send_batch(sender, batch, cfg, master, results, redirect, lock):
         for i, (row, to) in enumerate(batch):
             if i:
                 time.sleep(random.uniform(*gap))
+            if PLACEHOLDER.search(row["email_body"] or "") or PLACEHOLDER.search(row["email_subject"] or ""):
+                # 2026-10-19: 102 offers went out ending in "[postal address needed]"; never again
+                con.execute("UPDATE jobs SET send_status=NULL, send_error='a placeholder is left in the email' WHERE id=?",
+                            (row["id"],))
+                con.commit()
+                continue
             if not redirect and suppress.is_blocked(to):   # added to the do-not-contact list since the batch was made
                 con.execute("UPDATE jobs SET send_status='rejected', send_error='on the do-not-contact list' WHERE id=?", (row["id"],))
                 con.commit()
@@ -252,6 +264,15 @@ def _send_batch(sender, batch, cfg, master, results, redirect, lock):
                 apply_label(sender, redirect or to, label_for(row))
                 with lock:
                     results.append((sender["email"], row["id"], redirect or to, "sent", dt.datetime.now().strftime("%H:%M:%S")))
+            except OFFLINE as e:
+                # no network (PC asleep, Wi-Fi down): the email never left, so it goes back in the queue and this
+                # batch stops; otherwise one outage marks the whole queue failed (2026-10-19: 1,911 emails)
+                if not redirect:
+                    con.execute("UPDATE jobs SET send_status='approved', to_email=NULL, sender=NULL WHERE id=?", (row["id"],))
+                    con.commit()
+                with lock:
+                    results.append((sender["email"], row["id"], to, f"OFFLINE {type(e).__name__}, kept for later", ""))
+                break
             except Exception as e:
                 if not redirect:
                     con.execute("UPDATE jobs SET send_status='failed', to_email=NULL, sender=?, send_error=? WHERE id=?",

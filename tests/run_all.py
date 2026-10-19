@@ -657,6 +657,85 @@ def _():
         con.commit()
 
 
+def _fake_send_batch(rows, send):
+    """Run sendqueue._send_batch on these (row, to) pairs with `send` in place of the real mailer, no Chrome."""
+    import contextlib
+    saved = render.PdfPrinter, mailer.send, sq.apply_label
+    render.PdfPrinter = lambda *a, **k: contextlib.nullcontext()
+    mailer.send, sq.apply_label = send, lambda *a, **k: None
+    results = []
+    try:
+        quick = {**cfg, "sending": {**cfg["sending"], "gap_seconds": [0, 0]}}
+        sq._send_batch(SENDING[0], rows, quick, master, results, None, threading.Lock())
+    finally:
+        render.PdfPrinter, mailer.send, sq.apply_label = saved
+    return results
+
+
+@test("Sending", "no network: the email goes back in the queue instead of failing")
+def _():
+    import socket
+    v = stage("offlineTestCo|role", "jobs@offline-test.example")
+    con.execute("UPDATE jobs SET track='services', email_body='Hello', email_subject='Hi' WHERE id=?", (v,))
+    con.commit()
+    try:
+        def down(*a, **k):
+            raise socket.gaierror(11001, "getaddrinfo failed")
+        res = _fake_send_batch([(con.execute("SELECT * FROM jobs WHERE id=?", (v,)).fetchone(), "jobs@offline-test.example")], down)
+        state = con.execute("SELECT send_status, to_email FROM jobs WHERE id=?", (v,)).fetchone()
+        assert tuple(state) == ("approved", None), tuple(state)
+        assert "OFFLINE" in res[0][3], res
+    finally:
+        con.execute("UPDATE jobs SET status='new', send_status=NULL, emails='[]', resume_path=NULL, track=NULL, sender=NULL, "
+                    "dedupe_key='restored|' || id WHERE id=?", (v,))
+        con.commit()
+    return "kept as approved, batch stopped"
+
+
+@test("Sending", "an email with a placeholder left in it is never sent")
+def _():
+    v = stage("placeholderTestCo|role", "jobs@placeholder-test.example")
+    con.execute("UPDATE jobs SET track='services', email_subject='Hi', email_body='Regards\n[postal address needed]' WHERE id=?", (v,))
+    con.commit()
+    sent = []
+    try:
+        _fake_send_batch([(con.execute("SELECT * FROM jobs WHERE id=?", (v,)).fetchone(), "jobs@placeholder-test.example")],
+                         lambda *a, **k: sent.append(1))
+        state = con.execute("SELECT send_status, send_error FROM jobs WHERE id=?", (v,)).fetchone()
+        assert not sent and state[0] is None and "placeholder" in state[1], (sent, tuple(state))
+        assert sq.PLACEHOLDER.search("Dear {{Company}} team") and not sq.PLACEHOLDER.search("Dear Acme team")
+    finally:
+        con.execute("UPDATE jobs SET status='new', send_status=NULL, send_error=NULL, emails='[]', resume_path=NULL, "
+                    "track=NULL, dedupe_key='restored|' || id WHERE id=?", (v,))
+        con.commit()
+    return "held back with a note"
+
+
+@test("Prospects", "world offers: web and mobile only, country rules, never Germany")
+def _():
+    from jobbot import prospects_world as pw, services_offer as so
+    offer = so.bullets_en()
+    assert "IoT" not in offer and "Payment gateway" in offer and "Mobile app" in offer and "new features" in offer, offer
+    row = {"country": "Singapore", "short_name": "Acme", "name_en": "Acme", "ceo_name": "Jane Tan",
+           "biz_email": "hello@acme.example", "biz_email_where": "business inbox: https://acme.example/contact"}
+    subject, body = pw.write(row, master, "1 Test Road, Taipei")
+    assert subject.startswith("<ADV> ") and "Dear Acme team," in body and "Jane Tan" not in body, subject
+    assert "https://acme.example/contact" in body and "1 Test Road, Taipei" in body and "unsubscribe" in body
+    assert not sq.PLACEHOLDER.search(body), "template left a placeholder"
+    subject, body = pw.write({**row, "country": "USA"}, master, "1 Test Road, Taipei")
+    assert not subject.startswith("<ADV>")
+    assert not pw.COUNTRIES["Germany"][1] and not pw.COUNTRIES["Austria"][1] and not pw.COUNTRIES["Switzerland"][1]
+    return "<ADV> for Singapore, team greeting, postal address and opt-out; DE/AT/CH not emailed"
+
+
+@test("Prospects", "business inbox finder skips hiring and investor addresses")
+def _():
+    from jobbot import prospects as pr
+    ok = [e for e in ["careers@x.com", "ir@x.com", "hello@x.com", "sales@x.com", "privacy@x.com", "info@x.com"]
+          if pr.BUSINESS_LOCAL.match(e.split("@")[0])]
+    assert ok == ["hello@x.com", "sales@x.com", "info@x.com"], ok
+
+
 @test("Follow-up", "due only after 7 days, once, and never after a reply or bounce")
 def _():
     from jobbot import followup as fu

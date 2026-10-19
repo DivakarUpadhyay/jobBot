@@ -218,10 +218,14 @@ FIELDS = {   # exchange -> its field names
                  web="網址", industry="產業別", addr="住址", addr_en="英文通訊地址", email="電子郵件信箱"),
     "TPEx": dict(url="https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O", zh="CompanyName", short="CompanyAbbreviation",
                  en="Symbol", web="WebAddress", industry="SecuritiesIndustryCode", addr="Address",
-                 addr_en="StockTransferAgentAddress", email="EmailAddress"),
+                 addr_en="StockTransferAgentAddress", email="EmailAddress", gm="GeneralManager", chair="Chairman"),
 }
+FIELDS["TWSE"].update(gm="總經理", chair="董事長")
 COLUMNS = {"short_name": "TEXT", "address": "TEXT", "city": "TEXT", "district": "TEXT", "published_email": "TEXT",
-           "hr_email": "TEXT", "hr_email_where": "TEXT", "email_checked_at": "TEXT"}
+           "hr_email": "TEXT", "hr_email_where": "TEXT", "email_checked_at": "TEXT",
+           # service offers (prospects_world): who runs the company and the business inbox it publishes
+           "country": "TEXT", "ceo_name": "TEXT", "ceo_title": "TEXT", "chairman": "TEXT", "employees": "INTEGER",
+           "names_source": "TEXT", "biz_email": "TEXT", "biz_email_where": "TEXT", "biz_checked_at": "TEXT"}
 
 
 def create(con):
@@ -256,6 +260,10 @@ def refresh(con):
             # TWSE gives an English mailing address; for TPEx the main address is already in English
             city, district = place(addr, _clean(r.get(f["addr_en"])) if origin == "TWSE" else addr)
             email = _clean(r.get(f["email"])).lower()
+            con.execute("UPDATE companies SET country='Taiwan', ceo_name=NULLIF(?, ''), ceo_title='General Manager (總經理)', "
+                        "chairman=NULLIF(?, ''), names_source=? WHERE search=?",
+                        (_clean(r.get(f["gm"])), _clean(r.get(f["chair"])),
+                         f"{origin} open data (company filing): {f['url']}", search))
             con.execute("UPDATE companies SET short_name=?, address=?, city=?, district=?, published_email=?, "
                         "industry=COALESCE(NULLIF(?, ''), industry), website=COALESCE(NULLIF(website, ''), NULLIF(?, '')) "
                         "WHERE search=?",
@@ -383,10 +391,20 @@ def _hr(emails, labelled=()):
             and (HR_LOCAL.match(e.split("@")[0]) or ct.rank(e) == 0 or e in labelled)]
 
 
-def find_on_site(website, use_search=True):
+# For service offers: who reads a business proposal. Hiring, investor, legal and complaint inboxes are left out.
+BUSINESS_LOCAL = re.compile(r"(?i)^(ceo|founder|founders|owner|director|md|bd|biz|business|partner|partners|partnership|"
+                            r"sales|enquir\w*|inquir\w*|hello|hi|contact|contactus|info|office|team|mail|general|admin)$")
+
+
+BUSINESS_ORDER = ["ceo", "founder", "owner", "director", "md", "partner", "bd", "biz", "business", "sales", "enquir", "inquir",
+                  "hello", "hi", "contact", "info", "office", "team", "general", "mail", "admin"]
+
+
+def find_on_site(website, use_search=True, prefer="hr"):
     """(email, where) for the best address on the company's own domain, or ('', '').
     Order: a hiring address on the site, a hiring address on the domain quoted elsewhere (web search),
-    then the site's general inbox (info@, contact@), marked 'general inbox' in `where`."""
+    then the site's general inbox (info@, contact@), marked 'general inbox' in `where`.
+    prefer='business' (service offers): only a business or general inbox (ceo@, partners@, sales@, hello@, info@)."""
     if not website:
         return "", ""
     url = website if website.lower().startswith("http") else "http://" + website
@@ -410,6 +428,10 @@ def find_on_site(website, use_search=True):
     # the company's own domain family: leadtek.com and leadtek.com.tw are one company
     good = [e for e in ct.clean([e for e, _ in found])
             if ct._base_domain(e.split("@")[1]) in domains or ct._base_domain(e.split("@")[1]).split(".")[0] in brands]
+    if prefer == "business":
+        biz = [e for e in good if BUSINESS_LOCAL.match(e.split("@")[0])]
+        biz.sort(key=lambda e: [i for i, w in enumerate(BUSINESS_ORDER) if e.split("@")[0].lower().startswith(w)][:1] or [99])
+        return (biz[0], f"business inbox: {where.get(biz[0], home.url)}") if biz else ("", "")
     hits = _hr(good, labelled)
     if hits:
         hits.sort(key=lambda e: (not HR_LOCAL.match(e.split("@")[0]), e not in labelled))
@@ -425,10 +447,11 @@ def find_on_site(website, use_search=True):
     return "", ""
 
 
-def find_many(con, rows, workers=12, per_company_seconds=75, on_result=None, use_search=False):
-    """Look up hiring addresses for these companies and store them. Returns how many were found."""
+def find_many(con, rows, workers=12, per_company_seconds=75, on_result=None, use_search=False, prefer="hr"):
+    """Look up hiring addresses (prefer='business': business inboxes) for these companies and store them.
+    Returns how many were found."""
     pool = ThreadPoolExecutor(workers)
-    futures = [(r, pool.submit(find_on_site, r["website"], use_search)) for r in rows]
+    futures = [(r, pool.submit(find_on_site, r["website"], use_search, prefer)) for r in rows]
     found = 0
     try:
         for r, future in futures:

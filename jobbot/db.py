@@ -91,7 +91,13 @@ def _schema_1(con):
     prospects.create(con)
 
 
-SCHEMA_STEPS = [_schema_1]   # append new steps; never edit or reorder one that has run
+def _schema_2(con):
+    """2026-10-19: companies gain country, CEO / chairman names and a business inbox (prospects_world)."""
+    from . import prospects
+    prospects.create(con)
+
+
+SCHEMA_STEPS = [_schema_1, _schema_2]   # append new steps; never edit or reorder one that has run
 
 
 def _version(con, name):

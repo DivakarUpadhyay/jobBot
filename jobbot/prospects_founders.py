@@ -75,7 +75,7 @@ def select(con, need_email=False, not_checked=False, limit=None, country=None):
 def founder_subject(startup):
     """A plain, professional subject: who is writing and for whom. No sales words, no list of technologies
     (user, 2026-10-18: "contract development ... should not go in the subject; subject needs to be proper")."""
-    return f"Senior Software Engineer available to support {startup}"
+    return f"Freelance web and mobile developer available to support {startup}"
 
 
 def write(company, master, postal_address, sender_email="{sender}"):
@@ -88,12 +88,11 @@ def write(company, master, postal_address, sender_email="{sender}"):
     startup = company["short_name"] or company["name_en"] or company["search"]
     subject = founder_subject(startup)
     body = (f"Hi {startup} team,\n\n"
-            f"I am a senior software engineer (10+ years) offering freelance development help to startups on a "
+            f"I am a freelance web and mobile developer (11 years) offering development help to startups on a "
             f"project basis, working remotely from Taiwan with good overlap with North American mornings "
             f"and evenings.\n\n"
             f"{offer(company['industry'])}\n\n"
-            f"Services I offer:\n{bullets_en()}\n"
-            f"- Web3: Solidity smart contracts (ERC-20, upgradeable vaults), wallet onboarding\n\n"
+            f"Services I offer:\n{bullets_en()}\n\n"
             + (f"Examples of my work: {portfolio}\n\n" if portfolio else "")
             + f"If any of this would help {startup}, I would be glad to have a short call or start with a small, "
               f"well-defined task.\n\n"

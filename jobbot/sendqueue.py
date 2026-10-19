@@ -24,6 +24,8 @@ from . import HomePath, db, mailer, render, suppress
 # errors raised before the mail server is reached: nothing was sent
 OFFLINE = (socket.gaierror, ConnectionRefusedError)
 # text that must be filled in before an email may go: "[postal address needed]", "{{Company}}"
+# Chinese (and other CJK) characters and full-width punctuation: only emails for Taiwan may contain them
+CJK = re.compile(r"[　-〿㐀-鿿豈-﫿＀-￯]")
 PLACEHOLDER = re.compile(r"\[[^\]\n]{0,40}needed\]|\{\{[^}\n]{1,40}\}\}")
 
 LABEL_ROOT = "Jobs"
@@ -218,6 +220,12 @@ def _send_batch(sender, batch, cfg, master, results, redirect, lock):
                 # 2026-10-19: 102 offers went out ending in "[postal address needed]"; never again
                 con.execute("UPDATE jobs SET send_status=NULL, send_error='a placeholder is left in the email' WHERE id=?",
                             (row["id"],))
+                con.commit()
+                continue
+            if (row["region"] or "") != "taiwan" and CJK.search((row["email_subject"] or "") + (row["email_body"] or "")):
+                # user, 2026-10-19: "ensure no emails outside of taiwan have to go in chinese"
+                con.execute("UPDATE jobs SET send_status=NULL, send_error='Chinese text in an email that is not for Taiwan' "
+                            "WHERE id=?", (row["id"],))
                 con.commit()
                 continue
             if not redirect and suppress.is_blocked(to):   # added to the do-not-contact list since the batch was made

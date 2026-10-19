@@ -28,7 +28,11 @@ def _auto_approve(con, cfg):
     need_ai = " AND tailored_by='ai'" if (cfg.get("ai") or {}).get("require_ai_for_sending") else ""
     cur = con.execute("""UPDATE jobs SET send_status='approved' WHERE status='matched' AND emails!='[]'
                          AND (resume_path IS NOT NULL OR job_type='lead') AND send_status IS NULL AND source!='freelancer'
-                         AND score>=? AND COALESCE(email_source,'') NOT LIKE 'CHECK%' AND job_type!='lead'""" + need_ai, (floor,))
+                         AND score>=? AND COALESCE(email_source,'') NOT LIKE 'CHECK%' AND job_type!='lead'
+                         -- service offers wait for `prospects approve --services`; an email the send step held back
+                         -- (placeholder left, Chinese text abroad) waits until it is rewritten
+                         AND source!='services' AND send_error IS NOT 'a placeholder is left in the email'
+                         AND send_error IS NOT 'Chinese text in an email that is not for Taiwan'""" + need_ai, (floor,))
     con.commit()
     return cur.rowcount
 

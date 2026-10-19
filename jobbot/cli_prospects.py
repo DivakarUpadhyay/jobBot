@@ -47,6 +47,7 @@ def world(countries: Optional[str] = typer.Option(None, help="Countries, comma s
     wanted = [c.strip() for c in countries.split(",")] if countries else list(pw.COUNTRIES)
     for country in wanted:
         console.print(f"  {country}: {pw.import_country(con, country)} companies with a CEO", highlight=False)
+    pw.resolve_labels(con)
     if find:
         rows = [r for r in con.execute("SELECT * FROM companies WHERE origin=? AND biz_checked_at IS NULL AND website<>''",
                                        (pw.ORIGIN,)) if r["country"] in wanted]

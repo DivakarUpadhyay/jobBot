@@ -563,7 +563,7 @@ def _():
 @test("Sending", "nothing is planned once today's cap is used")
 def _():
     c2 = load_config()
-    c2["sending"]["warmup_caps"] = [sq.sent_today(con, SENDING[0]["email"])]
+    c2["sending"]["warmup_caps"] = [min(sq.sent_today(con, s["email"]) for s in SENDING)]   # every account at its cap
     assert not any(sq.plan(con, c2, SENDING, ignore_hours=True)[0].values())
 
 
@@ -709,6 +709,25 @@ def _():
                     "track=NULL, dedupe_key='restored|' || id WHERE id=?", (v,))
         con.commit()
     return "held back with a note"
+
+
+@test("Sending", "an email with Chinese text is sent only to Taiwan")
+def _():
+    v = stage("cjkTestCo|role", "jobs@cjk-test.example")
+    con.execute("UPDATE jobs SET track='services', region='abroad', email_subject='Hi', email_body='您好 Hello' WHERE id=?", (v,))
+    con.commit()
+    sent = []
+    try:
+        _fake_send_batch([(con.execute("SELECT * FROM jobs WHERE id=?", (v,)).fetchone(), "jobs@cjk-test.example")],
+                         lambda *a, **k: sent.append(1))
+        state = con.execute("SELECT send_status, send_error FROM jobs WHERE id=?", (v,)).fetchone()
+        assert not sent and state[0] is None and "Chinese" in state[1], (sent, tuple(state))
+        assert not sq.CJK.search("Dear Acme team, café – naïve") and sq.CJK.search("台北")
+    finally:
+        con.execute("UPDATE jobs SET status='new', send_status=NULL, send_error=NULL, emails='[]', resume_path=NULL, "
+                    "track=NULL, dedupe_key='restored|' || id WHERE id=?", (v,))
+        con.commit()
+    return "held back abroad; Taiwan emails unaffected"
 
 
 @test("Prospects", "world offers: web and mobile only, country rules, never Germany")

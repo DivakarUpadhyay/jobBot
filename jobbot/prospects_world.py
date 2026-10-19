@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 import requests
 
 from . import db, suppress
+from .sendqueue import CJK
 from .prospects import find_on_site, phone_parts
 from .services_offer import bullets_en
 
@@ -66,24 +67,48 @@ def _entities(ids):
     """{id: entity} with English (else any) labels and claims, 50 per request."""
     out, ids = {}, list(dict.fromkeys(ids))
     for i in range(0, len(ids), 50):
-        for attempt in range(3):
+        for attempt in range(6):
             try:
                 r = requests.get("https://www.wikidata.org/w/api.php", headers=UA, timeout=60,
                                  params={"action": "wbgetentities", "ids": "|".join(ids[i:i + 50]), "format": "json",
-                                         "props": "labels|claims", "languages": "en|zh-tw|zh|fr|nl|sv|es|it|de|ms"})
-                out.update(r.json().get("entities", {}))
-                break
+                                         "props": "labels|claims", "languages": "en|zh-tw|zh|fr|nl|sv|es|it|de|ms",
+                                         "maxlag": 5})
+                if r.status_code == 200 and "entities" in r.json():
+                    out.update(r.json()["entities"])
+                    break
+                wait = r.headers.get("Retry-After", "")   # rate limited or lagging: wait as asked
+                time.sleep(int(wait) if wait.isdigit() else 10 * (attempt + 1))
             except Exception:
-                time.sleep(5)
+                time.sleep(10 * (attempt + 1))
     return out
 
 
-def _label(e):
+LOCAL_LANGS = {"Taiwan": ("zh-tw", "zh"), "China": ("zh", "zh-tw"), "France": ("fr",), "Netherlands": ("nl",),
+               "Belgium": ("nl", "fr"), "Sweden": ("sv",), "Spain": ("es",), "Italy": ("it",), "Germany": ("de",),
+               "Austria": ("de",), "Switzerland": ("de", "fr", "it"), "Malaysia": ("ms",)}
+
+
+def _label(e, country=None):
+    """English name, else the country's own language; never a name in an unrelated language."""
     labels = (e or {}).get("labels", {})
-    for lang in ("en", "zh-tw", "zh", "fr", "nl", "sv", "es", "it", "de", "ms"):
+    for lang in ("en",) + (LOCAL_LANGS.get(country, ()) if country else ("zh-tw", "zh", "fr", "nl", "sv", "es", "it", "de", "ms")):
         if lang in labels:
             return labels[lang]["value"]
     return ""
+
+
+def resolve_labels(con):
+    """Turn place and industry ids (Q123) left by an interrupted or rate-limited import into names."""
+    rows = con.execute("SELECT DISTINCT city FROM companies WHERE origin=? AND city GLOB 'Q[0-9]*' UNION "
+                       "SELECT DISTINCT industry FROM companies WHERE origin=? AND industry GLOB 'Q[0-9]*'",
+                       (ORIGIN, ORIGIN)).fetchall()
+    names = {k: _label(v) for k, v in _entities([r[0] for r in rows]).items()}
+    for k, v in names.items():
+        if v:
+            con.execute("UPDATE companies SET city=? WHERE origin=? AND city=?", (v, ORIGIN, k))
+            con.execute("UPDATE companies SET industry=? WHERE origin=? AND industry=?", (v, ORIGIN, k))
+    con.commit()
+    return len(names)
 
 
 def _claim(e, prop):
@@ -111,7 +136,7 @@ def import_country(con, country):
     n = 0
     for cid, (site, ceo, start) in by_company.items():
         e = ents.get(cid)
-        name, ceo_name = _label(e), _label(ceos.get(ceo))
+        name, ceo_name = _label(e, country), _label(ceos.get(ceo), country)
         if not name or re.fullmatch(r"Q\d+", name) or not ceo_name or _claim(ceos.get(ceo), "P570"):
             continue   # no name, or the recorded CEO has died: the record is out of date
         title = f"CEO (since {start})" if start else "CEO (start date not recorded: check)"
@@ -308,13 +333,17 @@ def queue(con, master, postal_address, countries=None, limit=None):
             continue
         subject, body = write(c, master, postal_address)
         firm = c["short_name"] or c["name_en"]
+        if c["country"] != "Taiwan" and CJK.search(subject + body):
+            skipped += 1   # user, 2026-10-19: no Chinese in emails outside Taiwan (no English company name known)
+            continue
         con.execute("""INSERT OR IGNORE INTO jobs(source, ext_id, title, company, location, region, remote, job_type, track,
                        category, url, description, tags, emails, score, score_notes, status, dedupe_key, found_at,
                        matched_on, resume_path, email_subject, email_body, tailored_by, email_source, contact_checked,
                        company_url)
-                       VALUES('services',?,?,?,?,'abroad',1,'prospect','freelance','Services',?,?,'[]',?,50,?,
+                       VALUES('services',?,?,?,?,?,1,'prospect','freelance','Services',?,?,'[]',?,50,?,
                        'matched',?,?,?,'',?,?,'template',?,1,?)""",
                     (str(c["id"]), "Freelance web and mobile offer", firm, f"{c['city'] or ''}, {c['country']}",
+                     "taiwan" if c["country"] == "Taiwan" else "abroad",
                      c["website"] or "", f"CEO: {c['ceo_name']} ({c['names_source']})", f'["{c["biz_email"]}"]',
                      f"{c['country']} company, CEO from Wikidata",
                      re.sub(r"[\W_]+", "", firm.lower()) + "|services", db.now(), db.today(), subject, body,

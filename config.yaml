@@ -163,6 +163,11 @@ sending:
   # Places served first each day: up to this many emails each go out before any other place's.
   place_first: {Taiwan: 20, Hong Kong: 20, India: 20}
 
+services:
+  # Freelance offers (jobbot prospects founders / world). US, Canadian and Australian law want the sender's
+  # postal address in every offer; offers wait until it is set.
+  postal_address: ""
+
 prospects:
   # Speculative applications to Taiwan listed companies (jobbot prospects ...). They go out after the
   # real job applications, inside the same daily cap, and never more than this many per account per day.

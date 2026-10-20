@@ -34,7 +34,33 @@ def _auto_approve(con, cfg):
                          AND source!='services' AND send_error IS NOT 'a placeholder is left in the email'
                          AND send_error IS NOT 'Chinese text in an email that is not for Taiwan'""" + need_ai, (floor,))
     con.commit()
-    return cur.rowcount
+    return cur.rowcount + (_approve_everything(con) if cfg["sending"].get("approve_everything") else 0)
+
+
+def _approve_everything(con):
+    """sending.approve_everything (user, 2026-10-20: "approve by self and send"): leads, doubtful (CHECK) addresses and
+    service offers are approved too, once their address's domain has a mail server. The send step's own checks still
+    apply: placeholders, Chinese text outside Taiwan, the do-not-contact list, the daily caps."""
+    from concurrent.futures import ThreadPoolExecutor
+    from .prospects_world import mail_domain_ok
+    rows = con.execute("""SELECT id, emails FROM jobs WHERE status='matched' AND emails!='[]' AND send_status IS NULL
+                          AND (resume_path IS NOT NULL OR job_type='lead') AND source!='freelancer'
+                          AND send_error IS NOT 'a placeholder is left in the email'
+                          AND send_error IS NOT 'Chinese text in an email that is not for Taiwan'""").fetchall()
+    if not rows:
+        return 0
+    addrs = [json.loads(r["emails"])[0] for r in rows]
+    with ThreadPoolExecutor(16) as pool:
+        ok = list(pool.map(lambda a: "@" in a and mail_domain_ok(a), addrs))
+    n = 0
+    for r, good in zip(rows, ok):
+        if good:
+            n += con.execute("UPDATE jobs SET send_status='approved' WHERE id=? AND send_status IS NULL", (r["id"],)).rowcount
+        else:
+            con.execute("UPDATE jobs SET send_status='rejected', send_error='no mail server for this address' WHERE id=?",
+                        (r["id"],))
+    con.commit()
+    return n
 
 
 @app.command()

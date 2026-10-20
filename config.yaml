@@ -145,6 +145,7 @@ sending:
   # manual = you approve each one. Doubtful addresses (CHECK) and lead emails always wait for you.
   review: auto
   semi_auto_min_score: 80
+  approve_everything: false    # true = leads, doubtful addresses and service offers are approved by the bot too
   # Per account per day, one number per week since the first send from that account. It climbs
   # slowly toward the Gmail limit (about 500 a day), because a sudden jump is what gets an
   # account flagged as spam. The last number applies from then on.

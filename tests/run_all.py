@@ -711,6 +711,30 @@ def _():
     return "held back with a note"
 
 
+@test("Sending", "approve-everything: a lead is approved, a dead domain is not, a held email stays held")
+def _():
+    from jobbot import cli_send
+    from jobbot import prospects_world as pw
+    ids = [r["id"] for r in con.execute("SELECT id FROM jobs WHERE status='new' AND send_status IS NULL AND job_type='full' LIMIT 3")]
+    saved = pw.mail_domain_ok
+    pw.mail_domain_ok = lambda e: not e.endswith("@dead.example")   # no DNS in the test
+    try:
+        for i, (addr, err) in zip(ids, [("a@live.example", None), ("b@dead.example", None),
+                                        ("c@live.example", "a placeholder is left in the email")]):
+            con.execute("UPDATE jobs SET status='matched', job_type='lead', send_status=NULL, emails=?, send_error=?, "
+                        "dedupe_key=? WHERE id=?", (json.dumps([addr]), err, f"approveall|{i}", i))
+        con.commit()
+        cli_send._approve_everything(con)
+        got = [con.execute("SELECT send_status FROM jobs WHERE id=?", (i,)).fetchone()[0] for i in ids]
+        assert got == ["approved", "rejected", None], got
+    finally:
+        pw.mail_domain_ok = saved
+        con.execute(f"UPDATE jobs SET status='new', job_type='full', send_status=NULL, send_error=NULL, emails='[]', "
+                    f"dedupe_key='restored|' || id WHERE id IN ({','.join(map(str, ids))})")
+        con.commit()
+    return "lead approved; no mail server rejected; placeholder still held"
+
+
 @test("Sending", "an email with Chinese text is sent only to Taiwan")
 def _():
     v = stage("cjkTestCo|role", "jobs@cjk-test.example")
@@ -893,7 +917,7 @@ def _():
     assert "gold card" not in body.lower()
 
 
-@test("Leads", "lead emails always wait for your approval")
+@test("Leads", "lead emails wait for your approval unless approve-everything is on")
 def _():
     from jobbot import cli_send
     lead = Job(source="test", ext_id="zz-test-lead", title="Tender: software", company="Test Agency", url="u",
@@ -902,7 +926,7 @@ def _():
         db.insert_job(con, lead, {"track": "lead", "category": "x", "emails": ["tender@lead-test.example"], "score": 99,
                                   "notes": "", "skip": None, "dedupe_key": "leadtest|x"})
         con.execute("UPDATE jobs SET status='matched', job_type='lead', tailored_by='ai' WHERE ext_id='zz-test-lead'")
-        auto = cfg | {"sending": cfg["sending"] | {"review": "auto"}}
+        auto = cfg | {"sending": cfg["sending"] | {"review": "auto", "approve_everything": False}}
         cli_send._auto_approve(con, auto)
         state = con.execute("SELECT send_status FROM jobs WHERE ext_id='zz-test-lead'").fetchone()[0]
         assert state is None, f"automatic review approved a lead email ({state})"

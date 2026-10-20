@@ -10,6 +10,12 @@ OUTPUT = HomePath("output")
 GOLD_CARD = re.compile(r"(?i)gold\s*card")
 
 
+def email_links(master):
+    """The profile links an email may show: never LinkedIn (user, 2026-10-19: "remove linkedin"; the account is
+    locked). The resume itself keeps every link."""
+    return [l for l in (master["contact"].get("links") or []) if l and "linkedin" not in l.lower()]
+
+
 def load_master():
     """Every fact a resume may use (document `resume` in the database)."""
     return profilestore.get("resume")

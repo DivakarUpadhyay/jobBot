@@ -768,9 +768,10 @@ def _():
                         (SENDING[0]["email"], f"fu{i}@followup-test.example", when, outcome, followed, i))
         due = {r["id"] for r in fu.due(con, cfg)} & set(ids)
         assert due == {ids[0]}, f"expected only the first case, got {sorted(due)}"
-        plan = fu.run(con, cfg, SENDING, {SENDING[0]["email"]: 5}, dry_run=True)
-        assert any(job_id == ids[0] for job_id, _, _ in plan)
-        assert not fu.run(con, cfg, SENDING, {SENDING[0]["email"]: 0}, dry_run=True), "sent although the daily cap is used"
+        roomy = {**cfg, "followup": {**(cfg.get("followup") or {}), "per_day_per_account": 999}}   # today's real follow-ups aside
+        plan = fu.run(con, roomy, SENDING, {SENDING[0]["email"]: 9999}, dry_run=True)   # real due ones come first
+        assert any(job_id == ids[0] for job_id, _, _ in plan), plan
+        assert not fu.run(con, roomy, SENDING, {SENDING[0]["email"]: 0}, dry_run=True), "sent although the daily cap is used"
     finally:
         con.rollback()
     return "1 of 5 cases due, as intended"

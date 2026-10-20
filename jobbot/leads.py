@@ -12,7 +12,7 @@ import re
 
 import openpyxl
 
-from . import db, profilestore
+from . import db, profilestore, render
 from .filter import EMAIL_RE
 from .sources.base import Job
 
@@ -45,7 +45,7 @@ def write_email(client, requirement, link, person, master, template="lead", buye
     title = re.sub(r"\s+", " ", requirement)
     short = title if len(title) <= 80 else title[:80].rsplit(" ", 1)[0] + "..."
     vals = {"title": short, "company": client, "greeting": f"Dear {person}," if person else "Dear Sir or Madam,",
-            "link": link, "name": master["name"], "phone": c["phone"], "profile": c["links"][0],
+            "link": link, "name": master["name"], "phone": c["phone"], "profile": (render.email_links(master) or [""])[0],
             "base": "New Taipei City, Taiwan", "buyer": buyer or "a public body"}
     body = t[template]["body"].format(**vals).strip() + "\n\n" + t["lead"]["signature"].format(**vals).strip()
     return t[template]["subject"].format(**vals), re.sub(r"\n{3,}", "\n\n", body)

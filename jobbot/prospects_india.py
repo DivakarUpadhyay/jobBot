@@ -144,7 +144,7 @@ def write(company, master, sender_email="{sender}", offer=None):
     name = master["name"].replace(" R.", "")
     links = master["contact"].get("links") or []
     portfolio = next((l for l in links if "portfolio" in l or "vercel" in l), "")
-    linkedin = next((l for l in links if "linkedin" in l), "")
+    linkedin = ""   # never in emails (render.email_links)
     _, intl_phone = phone_parts(master["contact"].get("phone", ""))
     company_name = company["short_name"] or company["name_en"] or company["search"]
     city = company["city"] or "India"

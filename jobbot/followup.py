@@ -11,7 +11,7 @@ import re
 from email.header import decode_header, make_header
 from email.utils import make_msgid
 
-from . import db, mailer, profilestore
+from . import db, mailer, profilestore, render
 
 
 def due(con, cfg):
@@ -50,7 +50,7 @@ def write(row, master):
     role = re.sub(r"^(Application for |Re: )", "", row["email_subject"] or row["title"]).split(" – ")[0]
     vals = {"greeting": f"Dear {row['hr_name']}," if row["hr_name"] else "Dear Hiring Team,", "title": role,
             "company": row["company"], "sent_on": dt.date.fromisoformat(row["sent_at"][:10]).strftime("%d %B").lstrip("0"),
-            "name": master["name"], "phone": c["phone"], "link": "\n".join(c["links"])}
+            "name": master["name"], "phone": c["phone"], "link": "\n".join(render.email_links(master))}
     return (t["followup"]["body"].format(**vals).strip() + "\n\n" + t["signature"].format(**vals).strip())
 
 

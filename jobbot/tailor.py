@@ -97,7 +97,7 @@ def fill_email(job, master, strengths, body_override=None, role_title=None):
         "intro": t["intro"].get(job["category"], t["intro"]["default"]),
         "strengths": strengths,
         "location_line": t["location_line"][place_key(job)],
-        "name": master["name"], "phone": c["phone"], "link": "\n".join(c["links"]),
+        "name": master["name"], "phone": c["phone"], "link": "\n".join(render.email_links(master)),
     }
     subject = t[track]["subject"].format(**vals)
     body = (body_override or t[track]["body"].format(**vals)).strip() + "\n\n" + t["signature"].format(**vals).strip()

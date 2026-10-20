@@ -533,7 +533,7 @@ def write(company, master, sender_email="{sender}", offer=None):
     tw_phone, intl_phone = phone_parts(master["contact"].get("phone", ""))
     name = master["name"].replace(" R.", "")
     links = master["contact"].get("links") or []
-    linkedin = next((l for l in links if "linkedin" in l), "")
+    linkedin = ""   # never in emails (render.email_links)
     portfolio = next((l for l in links if "portfolio" in l or "vercel" in l), "")
     folio_zh = f"作品集與專案範例請參考：{portfolio}\n\n" if portfolio else ""
     folio_en = f"You can see my portfolio and project examples at {portfolio}\n\n" if portfolio else ""

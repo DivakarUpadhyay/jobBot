@@ -92,3 +92,58 @@ in the copy you put on the server.
   (not built) and run more than one customer process.
 - Mailbox sign-in keeps its short-lived sign-in state in the `customer` process's memory: run one `customer`
   process, or the callback may land on one that did not start the sign-in.
+
+## Railway (one service, no server to look after)
+
+`railway.json` in the repo root tells Railway to build `deploy/Dockerfile` and start `deploy/start.sh`: one
+process serving the customer portal (`/app`), the admin panel (`/admin`) and the scheduler. Schedules and
+settings live in the database, so after setup everything is done from the admin panel and runs happen on
+time without this PC.
+
+1. railway.com → New Project → Deploy from GitHub repo → `DivakarUpadhyay/jobBot`. Hobby plan (US$5 a month
+   plus usage) is enough for a pilot.
+2. On the service: **Volumes → Add volume**, mount path `/data`.
+3. **Variables**:
+   - `JOBBOT_DATA=/data`
+   - `RAILWAY_RUN_UID=0` (the volume is owned by root; the image's user cannot write to it otherwise)
+   - `JOBBOT_TRUSTED_PROXY=*`
+   - `JOBBOT_SEED_TOKEN=` a long random string (only needed for step 5)
+   - `JOBBOT_PUBLIC_URL=https://<your domain>`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, and the rest of
+     `env.example` as you get them. Do not set `JOBBOT_SECRET_KEY` unless you also had it on the PC.
+4. **Settings → Networking → Generate domain** (or add your own domain). Deploy. The log says
+   `waiting for PUT /seed`.
+5. Move the data from the PC, once (database, the owner's mail passwords, account folders):
+   `.venv\Scripts\python.exe tools\push_seed.py https://<domain> <JOBBOT_SEED_TOKEN>`
+   The service then starts by itself. Afterwards delete `JOBBOT_SEED_TOKEN` from Variables.
+6. **Stop the bot on the PC** (`jobbot loop stop`, disable the "JobBot Loop" / "JobBot Daily 0830" scheduled
+   tasks, close the admin/customer windows). Two databases sending on their own would email people twice.
+7. Sign in at `https://<domain>/admin` with your existing admin login. Change settings, schedules and the bot
+   switch there.
+
+Every push to `main` on GitHub redeploys; the volume (database, backups) is kept. Without a seed, a fresh
+volume starts empty and the first admin sign-in is created with `railway ssh` then
+`python -m jobbot user add you@example.com --generate`.
+
+Job sites may block requests from cloud addresses more often than from a home connection (104 in particular);
+compare the first days' finds with the PC's.
+
+## Free: Oracle Cloud Always Free
+
+No monthly cost. Oracle asks for a card to verify identity; Always Free resources are not charged.
+
+1. Sign up at oracle.com/cloud/free. Pick a home region near you (it cannot be changed later).
+2. Compute → Instances → Create: image **Ubuntu 24.04**, shape **VM.Standard.A1.Flex** (Ampere ARM),
+   2 OCPU / 12 GB is plenty (free up to 4 / 24). Download the SSH private key it offers. If it says
+   "out of capacity", try another availability domain or again later.
+3. Networking → the instance's VCN → Security List → Add ingress rules: source `0.0.0.0/0`, TCP, ports
+   `80` and `443`.
+4. On the PC: `.venv\Scripts\python.exe tools\push_seed.py --file seed.tar.gz`, then
+   `scp -i <key> seed.tar.gz ubuntu@<public IP>:~/`
+5. `ssh -i <key> ubuntu@<public IP>` and run
+   `curl -fsSL https://raw.githubusercontent.com/DivakarUpadhyay/jobBot/main/deploy/oracle-setup.sh | bash`
+   It prints the two addresses (`https://<ip>.sslip.io` customer portal, `https://admin.<ip>.sslip.io` admin
+   panel; free HTTPS, no domain needed). Put `GEMINI_API_KEY` in `~/jobBot/deploy/.env`, then
+   `cd ~/jobBot && sudo docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d`.
+6. Stop the bot on the PC (see step 6 of the Railway section).
+
+To update after a push to GitHub: run the same curl line again. The data volume is kept.

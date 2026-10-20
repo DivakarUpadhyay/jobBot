@@ -4,6 +4,7 @@ config.yaml is only the list of defaults: a setting that is new in the file is a
 and "reset" goes back to the file's value. A value in the table is never changed by the file.
 Change settings on the admin page or with `PUT /config`."""
 import json
+import os
 import re
 
 import yaml
@@ -124,6 +125,9 @@ def load_config():
                 cfg.setdefault(section, {})[name] = json.loads(r["value"])
             else:
                 cfg[section] = json.loads(r["value"])
+        # A server without Google Chrome (ARM machines such as Oracle's free one) uses Playwright's own Chromium.
+        if os.environ.get("JOBBOT_BROWSER_CHANNEL"):
+            cfg.setdefault("browser", {})["channel"] = os.environ["JOBBOT_BROWSER_CHANNEL"]
         return cfg
     finally:
         con.close()

@@ -7,7 +7,8 @@ FROM mcr.microsoft.com/playwright/python:v1.58.0-noble
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
- && python -m playwright install chrome
+ && python -m playwright install chromium  && if [ "$(dpkg --print-architecture)" = "amd64" ]; then python -m playwright install chrome; fi
+# On ARM (Google Chrome has no Linux ARM build) set JOBBOT_BROWSER_CHANNEL=chromium to use Playwright's Chromium.
 
 COPY . .
 

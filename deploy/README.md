@@ -147,3 +147,31 @@ No monthly cost. Oracle asks for a card to verify identity; Always Free resource
 6. Stop the bot on the PC (see step 6 of the Railway section).
 
 To update after a push to GitHub: run the same curl line again. The data volume is kept.
+
+## Pages on Vercel (added 2026-10-21)
+
+Vercel can host the pages but not the bot: it keeps no files between requests (the SQLite database would lose
+every write), free runs stop after 5 minutes, and free cron jobs run once a day. So the pages are on Vercel and
+the server above does everything else. Vercel passes every request that is not a page on to the server, so the
+pages and the API share one address.
+
+| Vercel project | Address | Folder | Passes the API to |
+|---|---|---|---|
+| `jobbot-portal` | https://jobbot-portal.vercel.app | `apps/customer-portal` | `https://DOMAIN` |
+| `jobbot-admin` | https://jobbot-admin.vercel.app | `apps/admin-panel` | `https://ADMIN_DOMAIN` |
+
+Scheduled job: `apps/admin-panel/api/cron.js` runs daily at 00:30 UTC (08:30 Taiwan; on the free plan Vercel
+may start it at any time within that hour). It asks the server to start a run for the owner's account
+(`POST /cycles`); the server skips it when a run is already going. Customers' own schedules (every 2 hours
+and so on) run from the scheduler on the server, which is set from the Schedule tab in the admin panel.
+
+Once the server is up:
+1. On the server: `docker compose -f deploy/docker-compose.yml exec admin python -m jobbot user key you@example.com --name vercel-cron`
+2. On the PC: `python deploy/vercel_connect.py --host DOMAIN --api-key KEY` (fills in the server's address in
+   both `vercel.json` files, sets the Vercel variables and redeploys). Commit the two `vercel.json` files.
+3. On the server: set `JOBBOT_PUBLIC_URL=https://jobbot-portal.vercel.app` in `deploy/.env` and restart, so
+   payment and mailbox sign-in returns land on the Vercel address.
+
+Redeploy a site by hand: `npx vercel deploy --prod` in its folder (both folders are linked to their projects).
+The Caddyfile hands Vercel's `X-Vercel-Forwarded-For` on as `X-Forwarded-For` so sign-in limits count
+visitors rather than Vercel; someone calling the server directly could set that header themselves.

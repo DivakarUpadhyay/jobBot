@@ -21,3 +21,4 @@ tests/.data/
 .venv/
 .secret.key
 tests/.last-quick-run.log
+.vercel/

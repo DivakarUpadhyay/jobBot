@@ -467,9 +467,11 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const list = v => (Array.isArray(v) ? v : String(v || "").split(",")).map(x => x.trim()).filter(Boolean);
 function msg(id, text, ok = true) { $(id).innerHTML = text ? `<div class="msg ${ok === "info" ? "info" : ok ? "ok" : "bad"}">${esc(text)}</div>` : ""; }
 
+const DOWN = "The service is being set up. Please try again in a little while.";
 async function api(method, path, body) {
   const res = await fetch(path, {method, headers: {"Content-Type": "application/json", ...(token ? {Authorization: "Bearer " + token} : {})},
-                                 body: body ? JSON.stringify(body) : undefined});
+                                 body: body ? JSON.stringify(body) : undefined}).catch(() => { throw new Error(DOWN); });
+  if ([502, 503, 504].includes(res.status) && path !== "/health/deep") throw new Error(DOWN);
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && token) { signOut(); throw new Error("Please sign in again."); }
   if (res.status === 402) { refreshAccess(); }
@@ -495,7 +497,7 @@ async function loadPlans() {
     $("regMarket").innerHTML = markets.map(m => `<option value="${esc(m.code)}" ${m.live ? "" : "disabled"}>${esc(m.name)}${m.live ? "" : " (coming soon)"}</option>`).join("");
     $("marketTabs").innerHTML = markets.map(m => `<div class="tab" data-market="${esc(m.code)}" onclick="showPlans('${esc(m.code)}')">${esc(m.name)}${m.live ? "" : " · soon"}</div>`).join("");
     showPlans((markets.find(m => m.live) || markets[0] || {}).code);
-  } catch (e) { $("planList").innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
+  } catch (e) { $("planList").innerHTML = `<p class="muted">${e.message === DOWN ? "Plans are being updated. Please check back soon." : esc(e.message)}</p>`; }
 }
 function showPlans(code) {
   document.querySelectorAll("[data-market]").forEach(t => t.classList.toggle("on", t.dataset.market === code));

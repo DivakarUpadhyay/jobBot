@@ -1,0 +1,6 @@
+README.md
+*.bat
+terms.html
+privacy.html
+.vercel
+.env*

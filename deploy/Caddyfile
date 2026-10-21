@@ -1,18 +1,37 @@
 # Caddy gets and renews the HTTPS certificates by itself (Let's Encrypt).
 # Customers use {$DOMAIN}; the operator uses {$ADMIN_DOMAIN}. /metrics is never served to the internet.
+# When the pages are on Vercel (apps/*/vercel.json), Vercel passes the visitor's address in
+# X-Vercel-Forwarded-For; it is handed on as X-Forwarded-For so sign-in limits count visitors, not Vercel.
 (common) {
 	encode gzip
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	@metrics path /metrics
-	respond @metrics 404
+	handle @metrics {
+		respond 404
+	}
+	@vercel header X-Vercel-Forwarded-For *
 }
 
 {$DOMAIN} {
 	import common
-	reverse_proxy customer:8765
+	handle @vercel {
+		reverse_proxy customer:8765 {
+			header_up X-Forwarded-For {http.request.header.X-Vercel-Forwarded-For}
+		}
+	}
+	handle {
+		reverse_proxy customer:8765
+	}
 }
 
 {$ADMIN_DOMAIN} {
 	import common
-	reverse_proxy admin:8766
+	handle @vercel {
+		reverse_proxy admin:8766 {
+			header_up X-Forwarded-For {http.request.header.X-Vercel-Forwarded-For}
+		}
+	}
+	handle {
+		reverse_proxy admin:8766
+	}
 }

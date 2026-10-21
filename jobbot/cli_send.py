@@ -632,6 +632,17 @@ def user_password(email: str, generate: bool = typer.Option(False, help="Make up
         console.print(f"Password (shown only now): {password}", markup=False, highlight=False)
 
 
+@user_app.command("key")
+def user_key(email: str, name: str = typer.Option("API key", help="What the key is for, e.g. vercel-cron.")):
+    """Make an API key for a user and print it once (for a machine, e.g. the Vercel cron job)."""
+    from . import control
+    row = control._one("SELECT id FROM users WHERE email=? AND active=1", email.strip().lower())
+    if not row:
+        raise typer.Exit(console.print(f"No active user {email}") or 1)
+    key, _ = control.token_create(row["id"], "key", name[:60])
+    console.print(f"API key '{name}' for {email} (shown only now): {key}", markup=False, highlight=False)
+
+
 loop_app = typer.Typer(no_args_is_help=True, help="The repeating loop started by the Windows task 'JobBot Loop'.")
 app.add_typer(loop_app, name="loop")
 

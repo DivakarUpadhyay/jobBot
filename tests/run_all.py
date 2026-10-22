@@ -1869,6 +1869,17 @@ def _():
     assert left["status"] == "deleted" and left["contact_email"] is None and left["name"] == "Deleted account"
     assert not control._one("SELECT 1 FROM users WHERE email='zz-test-delete@example.org'")
     assert not control._one("SELECT 1 FROM acct_prefs WHERE account_id=?", reg["account"]["id"])
+    # someone signing up again with the same name gets a new folder and none of the deleted account's data
+    code, again = call("/register", "POST", {"name": "zz-test delete me", "email": "zz-test-delete2@example.org", "password": PASSWORD,
+                                             "market": "IN", "accept_terms": True}, token=None)
+    assert code in (200, 201), again
+    assert again["account"]["home"] != left["home"], f"the new account reuses the deleted account's folder {left['home']}"
+    them = lambda path, *a: call(path, *a, token=again["token"])
+    assert "Zz Delete" not in json.dumps(them("/portal/details")[1]) and them("/portal/export")[1]["account"]["id"] == again["account"]["id"]
+    call("/operator/overview")   # must not set the deleted account up again
+    assert not control._one("SELECT 1 FROM acct_settings WHERE account_id=?", reg["account"]["id"]), "the deleted account was set up again"
+    assert them("/portal/account/delete", "POST", {"password": PASSWORD, "confirm": "DELETE"})[0] == 200
+    control._write("UPDATE accounts SET slug='zz-test-deleted-' || id WHERE id=?", again["account"]["id"])
     assert call("/portal/account/delete", "POST", {"password": PASSWORD, "confirm": "DELETE"})[0] == 400, "the owner's account could be deleted"
     control._write("UPDATE accounts SET slug='zz-test-deleted-' || id WHERE id=?", reg["account"]["id"])   # cleared on the next run
     return f"export had {len(data)} sections; deleted, payments kept: {gone[1]['payments_kept']}"

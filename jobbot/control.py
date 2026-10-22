@@ -13,6 +13,7 @@ import secrets
 import sqlite3
 import threading
 import time
+from pathlib import Path
 
 from . import DATA, use_home
 
@@ -257,7 +258,9 @@ def account_create(name, timezone="UTC"):
     if not name:
         raise ValueError("the account needs a name")
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40] or "account"
-    taken = {a["slug"] for a in accounts()}
+    # A deleted account keeps its folder name in `home` (its slug becomes deleted-N). Never hand that folder to a
+    # new account: rows are found from the folder (db.account_id), so the newcomer would get the old account's id.
+    taken = {a["slug"] for a in accounts()} | {Path(a["home"]).name for a in accounts()}
     slug, n = base, 2
     while slug in taken:
         slug, n = f"{base}-{n}", n + 1

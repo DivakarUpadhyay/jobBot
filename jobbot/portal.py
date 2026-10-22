@@ -811,6 +811,9 @@ def operator_overview():
     for acc in ct.accounts():
         row = {k: acc.get(k) for k in ("id", "name", "slug", "plan", "market", "status", "created_at", "trial_ends_at", "paid_until", "contact_email", "users")}
         row["plan_title"], row["price_month"], row["currency"] = plan_of(acc)["title"], plan_of(acc)["price_month"], plan_of(acc)["currency"]
+        if acc["status"] == "deleted":   # opening its folder would set the account up again with starting settings
+            out.append({**row, "bot_on": False, "last_run": None})
+            continue
         try:
             with use_home(ct.home_of(acc)):
                 con = db.connect()

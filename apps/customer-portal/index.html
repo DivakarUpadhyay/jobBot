@@ -857,6 +857,7 @@ async function saveMailbox() {
 async function testMailbox() {
   msg("mailMsg", "Signing in to your mailbox…", "info");
   try { const r = await api("POST", "/portal/mailbox/test");
+        if (!r.length) return msg("mailMsg", "Connect a mailbox first, then test it.", false);
         msg("mailMsg", r.map(x => `${x.email}: ${x.ok ? "signed in OK" : friendlyMail(x.error)}`).join(" · "), r.every(x => x.ok)); }
   catch (e) { msg("mailMsg", e.message, false); }
 }

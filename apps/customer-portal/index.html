@@ -490,14 +490,20 @@ const SYMBOL = {INR: "₹", TWD: "NT$", AED: "AED ", NPR: "Rs ", CNY: "¥", JPY:
 const money = (p) => p.price_month ? (SYMBOL[p.currency] || p.currency + " ") + Number(p.price_month).toLocaleString() : "Free";
 const planPoints = p => p.price_month ? [`Up to ${p.daily_cap} tailored applications a day`, `${p.mailboxes} sending mailbox${p.mailboxes > 1 ? "es" : ""}`,
     "Role match + AI fit check on every job", "AI resume studio", "Edit your profile any time"] : ["Create your profile", "Resume and cover letter reading", "Job title suggestions", "Bot stays off until you choose a plan"];
+// Shown when the server cannot be reached, so the sign-up form is never empty; the server's list replaces it.
+const FALLBACK_MARKETS = [{code: "IN", name: "India", live: true}, {code: "TW", name: "Taiwan"}, {code: "AE", name: "United Arab Emirates (Dubai)"},
+  {code: "NP", name: "Nepal"}, {code: "CN", name: "China"}, {code: "JP", name: "Japan"}, {code: "KR", name: "South Korea"}];
+function fillCountries(list) {
+  $("regMarket").innerHTML = list.map(m => `<option value="${esc(m.code)}" ${m.live ? "" : "disabled"}>${esc(m.name)}${m.live ? "" : " (coming soon)"}</option>`).join("");
+}
 async function loadPlans() {
   try {
     const r = await api("GET", "/plans");
     plans = r.plans; markets = r.markets;
-    $("regMarket").innerHTML = markets.map(m => `<option value="${esc(m.code)}" ${m.live ? "" : "disabled"}>${esc(m.name)}${m.live ? "" : " (coming soon)"}</option>`).join("");
+    fillCountries(markets);
     $("marketTabs").innerHTML = markets.map(m => `<div class="tab" data-market="${esc(m.code)}" onclick="showPlans('${esc(m.code)}')">${esc(m.name)}${m.live ? "" : " · soon"}</div>`).join("");
     showPlans((markets.find(m => m.live) || markets[0] || {}).code);
-  } catch (e) { $("planList").innerHTML = `<p class="muted">${e.message === DOWN ? "Plans are being updated. Please check back soon." : esc(e.message)}</p>`; }
+  } catch (e) { fillCountries(FALLBACK_MARKETS); $("planList").innerHTML = `<p class="muted">${e.message === DOWN ? "Plans are being updated. Please check back soon." : esc(e.message)}</p>`; }
 }
 function showPlans(code) {
   document.querySelectorAll("[data-market]").forEach(t => t.classList.toggle("on", t.dataset.market === code));
